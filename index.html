@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA / Add to Home Screen Meta Tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PGE Reciept">
+    <link rel="manifest" id="dynamic-manifest">
+    
+    <title>Prof General Enterprises - Receipt App</title>
+    
+    <!-- Tailwind CSS (CDN fallback) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- html2pdf for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+
+    <!-- Standalone CSS Rules -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        /* Modern Pop-in Animation */
+        @keyframes scalePop {
+            0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Fullscreen Security Lock Overlay */
+        .lock-screen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #0f172a;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .lock-card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 40px 28px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: scalePop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            will-change: transform, opacity;
+        }
+
+        /* Toast Notification (Top Centered Popup) */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: 90%;
+            max-width: 420px;
+            pointer-events: none;
+        }
+
+        .toast-message {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 14px 20px;
+            border-radius: 14px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #334155;
+            animation: fadeInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast-success { border-left: 5px solid #10b981; }
+        .toast-error { border-left: 5px solid #ef4444; }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Modern Navigation Bar */
+        .app-nav {
+            background-color: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #ffffff;
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            width: 100%;
+        }
+
+        .brand-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-icon {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            white-space: nowrap;
+            will-change: transform;
+        }
+
+        .btn:active {
+            transform: translateY(2px) scale(0.97);
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-secondary {
+            background-color: #334155;
+            color: #f8fafc;
+            border: 1px solid #475569;
+        }
+
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        .btn-new {
+            background-color: #059669;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+        }
+
+        .btn-new:hover {
+            background-color: #047857;
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            padding: 16px 32px;
+            font-size: 16px;
+            border-radius: 14px;
+            width: 100%;
+            font-weight: 800;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+            letter-spacing: 0.02em;
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.4);
+        }
+
+        .dots-btn {
+            background: transparent;
+            color: #cbd5e1;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .dots-btn:hover {
+            background: #1e293b;
+            color: #ffffff;
+            border-color: #334155;
+        }
+
+        /* Dropdown Menu */
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 54px;
+            width: 200px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            z-index: 100;
+            display: none;
+            animation: scalePop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transform-origin: top right;
+        }
+
+        .dropdown-item {
+            width: 100%;
+            text-align: left;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.15s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            transform: translateX(4px);
+        }
+
+        /* Modal Backdrop & Dialog Cards */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 32px 28px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            border: 1px solid #f1f5f9;
+            animation: scalePop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .modal-icon {
+            width: 60px;
+            height: 60px;
+            background: #eff6ff;
+            color: #2563eb;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            font-size: 24px;
+        }
+
+        /* Page Layout & Fullscreen Form Sections */
+        .main-container {
+            max-width: 1000px;
+            margin: 40px auto 0 auto;
+            padding: 0 24px;
+            width: 100%;
+        }
+
+        .page-header { margin-bottom: 28px; }
+        .page-title { font-size: 2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; }
+        .page-subtitle { font-size: 0.95rem; color: #64748b; margin-top: 6px; }
+
+        .form-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 28px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .form-card:hover { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06); }
+
+        .form-card-header {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-grid { display: grid; grid-template-columns: 1fr; gap: 20px; width: 100%; }
+
+        @media (min-width: 768px) {
+            .form-grid-2 { grid-template-columns: 1fr 1fr; }
+            .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 18px;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-control:focus {
+            border-color: #2563eb;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+
+        .product-row {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            margin-bottom: 16px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        .product-row:hover { border-color: #cbd5e1; background: #ffffff; }
+
+        .btn-remove-row {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ef4444;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+            transition: transform 0.2s;
+        }
+        
+        .btn-remove-row:hover { transform: scale(1.1); }
+
+        .prod-grid { display: grid; grid-template-columns: 1fr; gap: 16px; width: 100%; }
+
+        @media(min-width: 640px) {
+            .prod-grid { grid-template-columns: 2fr 1fr 1fr; }
+        }
+
+        /* Generated Receipt Card Container */
+        .receipt-container {
+            background: #ffffff;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 50px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            border: 1px solid #cbd5e1;
+            width: 100%;
+        }
+
+        .receipt-divider { border: 0; border-top: 1.5px dashed #94a3b8; margin: 24px 0; }
+
+        .receipt-header-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #0f172a;
+        }
+
+        .receipt-slogan {
+            text-align: center; font-size: 0.8rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.15em; color: #334155; margin-top: 8px;
+        }
+
+        .receipt-excellence {
+            text-align: center; font-size: 0.8rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.2em; color: #2563eb; margin-top: 6px;
+        }
+
+        .receipt-contact {
+            text-align: center; font-size: 0.95rem; font-weight: 700;
+            color: #1e293b; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+
+        .receipt-section-title {
+            font-size: 0.8rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.1em; color: #0f172a; padding-bottom: 8px;
+            border-bottom: 2px solid #f1f5f9; margin-bottom: 16px;
+        }
+
+        .vertical-stack { display: flex; flex-direction: column; gap: 10px; font-size: 0.95rem; color: #1e293b; }
+        .stack-item { display: flex; align-items: flex-start; }
+        .stack-label { font-weight: 700; width: 150px; flex-shrink: 0; color: #0f172a; }
+        .stack-value { font-weight: 500; word-break: break-word; }
+
+        .product-item-card {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 16px; margin-bottom: 12px; width: 100%;
+        }
+
+        .product-name { font-weight: 700; font-size: 0.95rem; color: #0f172a; margin-bottom: 8px; }
+        .product-meta-row { display: grid; grid-template-columns: 1fr 1fr 1fr; font-size: 0.85rem; color: #64748b; }
+
+        .status-badge {
+            display: inline-block; padding: 4px 14px; border-radius: 8px;
+            font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .status-paid { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        .status-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+
+        .receipt-footer-text { text-align: center; margin-top: 24px; }
+        .footer-thankyou { font-size: 0.95rem; font-weight: 800; color: #0f172a; }
+        .footer-priority { font-size: 0.85rem; font-style: italic; color: #64748b; margin-top: 4px; }
+
+        .hidden { display: none !important; }
+
+        .history-card {
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .history-card:hover {
+            border-color: #2563eb; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12); transform: translateY(-2px);
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            body { background: #ffffff !important; padding-bottom: 0 !important; }
+            .app-nav, #input-view, #history-view, #about-view, .toast-container, .modal-backdrop, .lock-screen-overlay, #dotsMenuContainer, #nav-actions, #nav-actions-history, .page-header, p {
+                display: none !important;
+            }
+            #preview-view, #preview-view > div { margin: 0 !important; padding: 0 !important; }
+            .main-container { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+            .receipt-container { box-shadow: none !important; border: none !important; padding: 10px !important; max-width: 100% !important; margin: 0 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 2-Second Toast Popup Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- FULLSCREEN INITIAL SECURITY LOCK SCREEN (Prompt on Fresh Launch / Session Start) -->
+    <div id="appLockOverlay" class="lock-screen-overlay">
+        <div class="lock-card">
+            <div class="modal-icon" style="background: #0f172a; color: #ffffff;">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h2 style="font-size: 1.14rem; font-weight: 800; color: #0f172a;">PROF GENERAL ENTERPRISES</h2>
+            <p style="font-size: 0.9rem; color: #64748b; margin: 4px 0 24px 0;">Official Access Password </p>
+            
+            <form id="unlockForm" onsubmit="event.preventDefault(); unlockApp();">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <input type="password" id="appLockPassword" required class="form-control" style="text-align: center; letter-spacing: 0.15em; font-size: 1.0rem; padding: 16px;" placeholder="Enter Access Password">
+                </div>
+                <button type="submit" id="unlockBtn" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 1.05rem; border-radius: 14px;">
+                    <i class="fa-solid fa-lock-open" style="margin-right: 8px;"></i> Unlock App
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <nav class="app-nav">
+        <div class="nav-container">
+            <h1 id="navBrandTitle" class="brand-title">
+                <span class="brand-icon"><i class="fa-solid fa-receipt"></i></span>
+               Prof General Enterprises
+            </h1>
+            
+            <div id="navRightContainer" class="nav-right">
+                <!-- Action Buttons (Visible during standard receipt preview) -->
+                <div id="nav-actions" class="hidden" style="display: flex; gap: 16px; width: 100%; justify-content: center;">
+                    <button onclick="createNewReceipt()" class="btn btn-new" title="Create New Receipt">
+                        <i class="fa-solid fa-plus"></i> <span style="display: inline-block;">New</span>
+                    </button>
+                    <button onclick="editForm()" class="btn btn-secondary">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit
+                    </button>
+                    <button onclick="downloadPDF()" class="btn btn-primary">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download
+                    </button>
+                </div>
+
+                <!-- Action Buttons (Visible during HISTORY receipt preview - No Edit) -->
+                <div id="nav-actions-history" class="hidden" style="display: flex; gap: 16px; width: 100%; justify-content: center;">
+                    <button onclick="closeHistoryDetail()" class="btn btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button onclick="downloadPDF()" class="btn btn-primary">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download
+                    </button>
+                </div>
+
+                <!-- 3 Dots Menu Button Container -->
+                <div id="dotsMenuContainer" style="position: relative;">
+                    <button id="menuBtn" onclick="toggleMenu(event)" class="dots-btn" aria-label="Menu">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div id="dropdownMenu" class="dropdown-menu">
+                        <button id="installAppMenuBtn" onclick="triggerInstallPrompt()" class="dropdown-item hidden">
+                            <i class="fa-solid fa-download" style="color: #2563eb; width: 18px; text-align: center;"></i> Install App
+                        </button>
+                        <button onclick="openHistoryAuthModal()" class="dropdown-item">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb; width: 18px; text-align: center;"></i> History
+                        </button>
+                        <button onclick="openChangePasswordModalStep1()" class="dropdown-item">
+                            <i class="fa-solid fa-key" style="color: #d97706; width: 18px; text-align: center;"></i> Settings
+                        </button>
+                        <button onclick="openAboutView()" class="dropdown-item">
+                            <i class="fa-solid fa-circle-info" style="color: #059669; width: 18px; text-align: center;"></i> About us
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 2. Security Modal: Password required before Generating Receipt -->
+    <div id="generateAuthModal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon" style="background: #eff6ff; color: #2563eb;">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h3 style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">Authorize Receipt</h3>
+            <p style="font-size: 0.9rem; color: #64748b; margin: 6px 0 20px 0;">Enter official password to generate receipt</p>
+            
+            <form onsubmit="event.preventDefault(); verifyPasswordAndGenerate();">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <input type="password" id="generatePasswordInput" required class="form-control" style="text-align: center; letter-spacing: 0.15em; font-size: 1.0rem;" placeholder="Enter Password">
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closeModal('generateAuthModal')" class="btn btn-secondary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- History Security Modal -->
+    <div id="historyAuthModal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon" style="background: #eff6ff; color: #2563eb;">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <h3 style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">History Access</h3>
+            <p style="font-size: 0.9rem; color: #64748b; margin: 6px 0 20px 0;">Enter official password to view past receipts</p>
+            
+            <form onsubmit="event.preventDefault(); verifyPasswordAndOpenHistory();">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <input type="password" id="historyPasswordInput" required class="form-control" style="text-align: center; letter-spacing: 0.15em; font-size: 1.0rem;" placeholder="Enter Password">
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closeModal('historyAuthModal')" class="btn btn-secondary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Security Modal: Change Password Step 1 (Current Password) -->
+    <div id="changePassStep1Modal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon" style="background: #fffbeb; color: #d97706;">
+                <i class="fa-solid fa-shield"></i>
+            </div>
+            <h3 style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">Change Password</h3>
+            <p style="font-size: 0.9rem; color: #64748b; margin: 6px 0 20px 0;">Enter current password to continue</p>
+            
+            <form onsubmit="event.preventDefault(); processChangePasswordStep1();">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <input type="password" id="currentPassInput" required class="form-control" style="text-align: center; letter-spacing: 0.15em; font-size: 1.05rem;" placeholder="Current Password">
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closeModal('changePassStep1Modal')" class="btn btn-secondary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Continue
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Security Modal: Change Password Step 2 (New & Confirm Password) -->
+    <div id="changePassStep2Modal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon" style="background: #ecfdf5; color: #059669;">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <h3 style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">Set New Password</h3>
+            <p style="font-size: 0.9rem; color: #64748b; margin: 6px 0 20px 0;">Fill in your new security credentials</p>
+            
+            <form onsubmit="event.preventDefault(); processChangePasswordStep2();">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" style="text-align: left;">New Password</label>
+                    <input type="password" id="newPassInput" required class="form-control" placeholder="New Password">
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label" style="text-align: left;">Confirm Password</label>
+                    <input type="password" id="confirmPassInput" required class="form-control" placeholder="Confirm New Password">
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closeModal('changePassStep2Modal')" class="btn btn-secondary" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Cancel
+                    </button>
+                    <button type="submit" id="changePassBtn" class="btn btn-new" style="flex: 1; padding: 14px; border-radius: 12px;">
+                        Change
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="main-container">
+        
+        <!-- ================= INPUT FORM SECTION ================= -->
+        <div id="input-view">
+            <div class="page-header">
+                <h2 class="page-title">Generate Receipt</h2>
+                <p class="page-subtitle">Fill out customer and item details below. Delivery address is optional for physical shop sales.</p>
+            </div>
+
+            <form id="receiptForm" onsubmit="event.preventDefault(); openGenerateAuthModal();">
+                
+                <!-- Receipt Info Section -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span><i class="fa-solid fa-circle-info" style="color: #2563eb; margin-right: 8px;"></i> Receipt Info</span>
+                    </div>
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label class="form-label">Receipt No</label>
+                            <input type="text" id="receiptNo" required class="form-control" placeholder="e.g. PGE-001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="receiptDate" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time</label>
+                            <input type="text" id="receiptTime" required class="form-control" placeholder="12:34:09 PM">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Details Section -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span><i class="fa-solid fa-user" style="color: #2563eb; margin-right: 8px;"></i> Customer Details</span>
+                    </div>
+                    <div class="form-grid form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Customer Name</label>
+                            <input type="text" id="customerName" required class="form-control" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Customer Phone</label>
+                            <input type="text" id="customerPhone" required class="form-control" placeholder="e.g. 08012345678">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Details Section -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span><i class="fa-solid fa-cart-shopping" style="color: #2563eb; margin-right: 8px;"></i> Order Details</span>
+                        <button type="button" onclick="addProductRow()" class="btn" style="background-color: #059669; color: white; padding: 8px 14px; font-size: 13px;">
+                            <i class="fa-solid fa-plus"></i> Add Product
+                        </button>
+                    </div>
+                    
+                    <div id="products-container">
+                        <!-- Dynamic Item Input Rows injected here -->
+                    </div>
+                </div>
+
+                <!-- Delivery Details & Payment Status -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span><i class="fa-solid fa-truck" style="color: #2563eb; margin-right: 8px;"></i> Delivery & Payment Status</span>
+                    </div>
+                    <div class="form-grid form-grid-2">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label class="form-label">
+                                Delivery Address <span style="text-transform: none; font-weight: 500; color: #94a3b8;">(optional - leave blank for shop pickup)</span>
+                            </label>
+                            <input type="text" id="deliveryAddress" class="form-control" placeholder="e.g. 12 Main Street, Lagos">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Delivery Fee (₦)</label>
+                            <input type="number" id="deliveryFee" value="0" min="0" class="form-control" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Payment Status</label>
+                            <select id="paymentStatus" class="form-control" style="cursor: pointer;">
+                                <option value="Paid">PAID</option>
+                                <option value="Pending">PENDING</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 32px; text-align: right;">
+                    <button type="submit" class="btn btn-submit">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Official Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+
+
+        <!-- ================= HISTORY VIEW ================= -->
+        <div id="history-view" class="hidden">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 class="page-title">Receipt History</h2>
+                    <p class="page-subtitle">View your generated receipts.</p>
+                </div>
+                <button onclick="closeHistoryList()" class="btn btn-secondary">
+                    <i class="fa-solid fa-xmark"></i> Close
+                </button>
+            </div>
+            
+            <div class="form-card" style="padding: 20px; margin-bottom: 24px;">
+                <div style="position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1.1rem;"></i>
+                    <input type="text" id="searchHistory" class="form-control" style="padding-left: 48px;" placeholder="Search by Receipt No..." onkeyup="filterHistory()">
+                </div>
+            </div>
+
+            <div id="history-list-container" style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Dynamically rendered history list -->
+            </div>
+        </div>
+
+
+        <!-- ================= ABOUT US VIEW ================= -->
+        <div id="about-view" class="hidden">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 class="page-title">About Us</h2>
+                    <p class="page-subtitle">Official Platform Information</p>
+                </div>
+                <button onclick="closeAboutView()" class="btn btn-secondary">
+                    <i class="fa-solid fa-xmark"></i> Close
+                </button>
+            </div>
+
+            <div class="form-card" style="font-size: 1rem; line-height: 1.8; color: #334155; white-space: pre-line;">Welcome to the official receipt platform of PROF GENERAL ENTERPRISES.
+
+This system is designed exclusively for authorized officials to securely create, manage, and issue official business receipts.
+
+🔐 Security & Access Control
+
+To protect the integrity of our business records and prevent unauthorized receipt generation, this platform is secured with an official access password.
+
+App/Website Access: A password is required whenever the application or website is reopened after being closed.
+
+Receipt Generation: Authorized personnel must enter the official password before any receipt can be generated.
+
+Receipt History: Access to receipt history is password-protected to prevent unauthorized persons from viewing business records.
+
+Official Use Only: The system is strictly intended for authorized officials of PROF GENERAL ENTERPRISES.
+
+Unauthorized Access: Possession of the application or website link alone does not grant permission to create, generate, or access official receipts and records.
+
+These security measures are implemented to ensure that our official receipts remain secure, controlled, authentic, and properly managed.
+
+Even if the application or website link is shared or accessed by an unauthorized person, important functions remain protected by password authentication.
+
+PROF GENERAL ENTERPRISES
+Quality • Trust • Reliability • Excellence</div>
+
+            <!-- Footer Copyright -->
+            <div style="text-align: center; margin: 40px 0 20px 0; font-size: 0.95rem; color: #64748b; font-weight: 600;">
+                Copyright ©️ 2026
+            </div>
+        </div>
+
+
+        <!-- ================= GENERATED RECEIPT PREVIEW VIEW ================= -->
+        <div id="preview-view" class="hidden">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <p style="font-size: 0.95rem; color: #64748b;">Review your receipt below.</p>
+            </div>
+
+            <!-- This container is rendered to PDF -->
+            <div id="receipt-content" class="receipt-container">
+                
+                <!-- HEADER (Business Name & Untouched Slogan/Phone) -->
+                <div>
+                    <h1 class="receipt-header-title">PROF GENERAL ENTERPRISES</h1>
+                    
+                    <!-- Middle aligned slogan -->
+                    <p class="receipt-slogan">Quality &bull; Trust &bull; Reliability</p>
+                    
+                    <!-- Middle aligned Excellence with centered dots decoration -->
+                    <p class="receipt-excellence">&bull; Excellence &bull;</p>
+                    
+                    <div class="receipt-contact">
+                        <i class="fa-brands fa-whatsapp" style="color: #16a34a; font-size: 16px;"></i>
+                        <i class="fa-solid fa-phone" style="color: #2563eb; font-size: 13px;"></i>
+                        <span>+234 913 995 0486</span>
+                    </div>
+                </div>
+
+                <hr class="receipt-divider">
+
+                <!-- META INFO (Strictly Vertical / One Under One) -->
+                <div class="vertical-stack">
+                    <div class="stack-item">
+                        <span class="stack-label">Receipt No:</span>
+                        <span id="out-receipt-no" class="stack-value" style="font-weight: 700; color: #1e3a8a;"></span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-label">Date:</span>
+                        <span id="out-date" class="stack-value"></span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-label">Time:</span>
+                        <span id="out-time" class="stack-value"></span>
+                    </div>
+                </div>
+
+                <hr class="receipt-divider">
+
+                <!-- CUSTOMER DETAILS -->
+                <div class="receipt-section-title">CUSTOMER DETAILS</div>
+                <div class="vertical-stack">
+                    <div class="stack-item">
+                        <span class="stack-label">Customer Name:</span>
+                        <span id="out-customer-name" class="stack-value"></span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-label">Customer Phone:</span>
+                        <span id="out-customer-phone" class="stack-value"></span>
+                    </div>
+                </div>
+
+                <hr class="receipt-divider">
+
+                <!-- ORDER DETAILS -->
+                <div class="receipt-section-title">ORDER DETAILS</div>
+                <div id="out-products-list">
+                    <!-- Dynamic Product List -->
+                </div>
+
+                <hr class="receipt-divider">
+
+                <!-- DELIVERY DETAILS -->
+                <div class="receipt-section-title">DELIVERY DETAILS</div>
+                <div class="vertical-stack">
+                    <div class="stack-item">
+                        <span class="stack-label">Address:</span>
+                        <span id="out-address" class="stack-value"></span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-label">Delivery fee:</span>
+                        <span id="out-delivery-fee" class="stack-value"></span>
+                    </div>
+                </div>
+
+                <hr class="receipt-divider">
+
+                <!-- TOTALS & STATUS -->
+                <div class="vertical-stack">
+                    <div class="stack-item" style="font-size: 1.05rem;">
+                        <span class="stack-label" style="font-size: 1.05rem;">Total:</span>
+                        <span id="out-total" class="stack-value" style="font-size: 1.35rem; font-weight: 900; color: #0f172a;"></span>
+                    </div>
+                    <div class="stack-item" style="align-items: center; margin-top: 6px;">
+                        <span class="stack-label">Payment status:</span>
+                        <span id="out-status" class="status-badge"></span>
+                    </div>
+                </div>
+
+                <hr class="receipt-divider">
+
+                <!-- FOOTER MESSAGES -->
+                <div class="receipt-footer-text">
+                    <p class="footer-thankyou">Thank you for your order with us!</p>
+                    <p class="footer-priority">Your Satisfaction, Our Priority</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================= SUPABASE INITIALIZATION =================
+        const SUPABASE_URL = 'https://pwdsgjnficwcsdfaqtzr.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'sb_publishable_Acjw1bgoc5nVo_Y8vS5mHw_yw5w5GqZ';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let currentAppPassword = "officials123#"; // Default Fallback
+        let currentReceipts = []; // Array to hold receipts from database
+
+        // PWA Manifest with Custom Name and Icon
+        const pwaManifest = {
+            "name": "PROF GENERAL ENTERPRISES",
+            "short_name": "PGE Reciept",
+            "start_url": window.location.href.split('?')[0],
+            "display": "standalone",
+            "background_color": "#f8fafc",
+            "theme_color": "#0f172a",
+            "icons": [
+                {
+                    "src": "https://official-receipt.vercel.app/logo.png",
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                },
+                {
+                    "src": "https://official-receipt.vercel.app/logo.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+        
+        const manifestBlob = new Blob([JSON.stringify(pwaManifest)], { type: 'application/json' });
+        document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+        // PWA Install Prompt Logic
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('installAppMenuBtn');
+            if (installBtn) {
+                installBtn.classList.remove('hidden');
+            }
+        });
+
+        function triggerInstallPrompt() {
+            const menu = document.getElementById('dropdownMenu');
+            if (menu) {
+                menu.style.display = 'none';
+            }
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast("App installed successfully!", true);
+                    }
+                    deferredPrompt = null;
+                    const installBtn = document.getElementById('installAppMenuBtn');
+                    if (installBtn) {
+                        installBtn.classList.add('hidden');
+                    }
+                });
+            } else {
+                showToast("App is already installed or your browser doesn't support direct install. Use 'Add to Home Screen' in browser settings.", false);
+            }
+        }
+
+        // NATIVE BACK BUTTON / GESTURE HANDLING
+        window.addEventListener('load', () => {
+            window.history.pushState({ noExit: true }, '');
+        });
+
+        window.addEventListener('popstate', function(event) {
+            let closedSomething = false;
+
+            const modals = document.querySelectorAll('.modal-backdrop');
+            for (let m of modals) {
+                if (window.getComputedStyle(m).display !== 'none') {
+                    m.style.display = 'none';
+                    closedSomething = true;
+                }
+            }
+            
+            if (!closedSomething) {
+                if (!document.getElementById('preview-view').classList.contains('hidden')) {
+                    if (!document.getElementById('nav-actions-history').classList.contains('hidden')) {
+                        closeHistoryDetail(); 
+                    } else {
+                        editForm();
+                    }
+                    closedSomething = true;
+                }
+                else if (!document.getElementById('history-view').classList.contains('hidden')) {
+                    closeHistoryList();
+                    closedSomething = true;
+                }
+                else if (!document.getElementById('about-view').classList.contains('hidden')) {
+                    closeAboutView();
+                    closedSomething = true;
+                }
+            }
+
+            if (closedSomething) {
+                window.history.pushState({ noExit: true }, '');
+            }
+        });
+
+
+        let productCount = 0;
+
+        function getAppPassword() {
+            return currentAppPassword;
+        }
+
+        const formatNaira = (amount) => {
+            return '₦' + Number(amount).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+
+        const getCurrentFormattedTime = () => {
+            return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        };
+
+        function showToast(message, isSuccess = true) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${isSuccess ? 'toast-success' : 'toast-error'}`;
+            toast.innerHTML = `
+                <i class="${isSuccess ? 'fa-solid fa-circle-check' : 'fa-solid fa-triangle-exclamation'}" style="color: ${isSuccess ? '#10b981' : '#ef4444'}; font-size: 18px;"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.4s ease';
+                setTimeout(() => toast.remove(), 400);
+            }, 2000); 
+        }
+
+        // ================= DATABASE FETCHING ON LOAD =================
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('receiptDate').valueAsDate = new Date();
+            document.getElementById('receiptTime').value = getCurrentFormattedTime();
+            generateNewReceiptNo();
+            addProductRow();
+
+            // Fetch password from Supabase
+            try {
+                const { data, error } = await supabase
+                    .from('app_config')
+                    .select('value')
+                    .eq('key', 'app_password')
+                    .single();
+                    
+                if (data && data.value) {
+                    currentAppPassword = data.value;
+                }
+            } catch (err) {
+                console.error("Could not fetch password from Supabase, using local memory.", err);
+            }
+
+            document.addEventListener('click', (event) => {
+                const menu = document.getElementById('dropdownMenu');
+                const menuBtn = document.getElementById('menuBtn');
+                if (menu && menuBtn && !menu.contains(event.target) && !menuBtn.contains(event.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+        });
+
+        function unlockApp() {
+            const entered = document.getElementById('appLockPassword').value;
+            if (entered === getAppPassword()) {
+                document.getElementById('appLockOverlay').style.display = 'none';
+                document.getElementById('appLockPassword').value = '';
+                showToast("Access Granted. Welcome!", true);
+            } else {
+                showToast("Incorrect Password! Access Denied.", false);
+                document.getElementById('appLockPassword').value = '';
+            }
+        }
+
+        function generateNewReceiptNo() {
+            document.getElementById('receiptNo').value = 'PGE-' + Math.floor(100000 + Math.random() * 900000);
+        }
+
+        function toggleMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('dropdownMenu');
+            if (menu.style.display === 'block') {
+                menu.style.display = 'none';
+            } else {
+                menu.style.display = 'block';
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function openGenerateAuthModal() {
+            document.getElementById('generatePasswordInput').value = '';
+            document.getElementById('generateAuthModal').style.display = 'flex';
+        }
+
+        function verifyPasswordAndGenerate() {
+            const entered = document.getElementById('generatePasswordInput').value;
+            if (entered === getAppPassword()) {
+                closeModal('generateAuthModal');
+                executeReceiptGeneration();
+                showToast("Receipt generated successfully!", true);
+            } else {
+                showToast("Incorrect Password! Receipt not generated.", false);
+                document.getElementById('generatePasswordInput').value = '';
+            }
+        }
+
+        function openHistoryAuthModal() {
+            document.getElementById('dropdownMenu').style.display = 'none';
+            document.getElementById('historyPasswordInput').value = '';
+            document.getElementById('historyAuthModal').style.display = 'flex';
+        }
+
+        function verifyPasswordAndOpenHistory() {
+            const entered = document.getElementById('historyPasswordInput').value;
+            if (entered === getAppPassword()) {
+                closeModal('historyAuthModal');
+                openHistoryList();
+            } else {
+                showToast("Incorrect Password! Access Denied.", false);
+                document.getElementById('historyPasswordInput').value = '';
+            }
+        }
+
+        async function openHistoryList() {
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('nav-actions').classList.add('hidden');
+            
+            const navHist = document.getElementById('nav-actions-history');
+            if (navHist) {
+                navHist.classList.add('hidden');
+                navHist.style.display = 'none';
+            }
+
+            document.getElementById('navBrandTitle').style.display = 'flex';
+            document.getElementById('navRightContainer').style.width = 'auto';
+            document.getElementById('navRightContainer').style.justifyContent = 'flex-end';
+            document.getElementById('dotsMenuContainer').classList.remove('hidden');
+
+            document.getElementById('history-view').classList.remove('hidden');
+            document.getElementById('searchHistory').value = '';
+
+            // Show loading state
+            document.getElementById('history-list-container').innerHTML = `<div style="text-align: center; color: #64748b; padding: 40px 20px;"><i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Loading receipts...</div>`;
+
+            // Fetch from Supabase Database
+            try {
+                const { data, error } = await supabase
+                    .from('receipts')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                currentReceipts = data || [];
+            } catch (err) {
+                console.error("Error loading history from DB:", err);
+                showToast("Could not load history from cloud.", false);
+            }
+            
+            renderHistoryList();
+        }
+
+        function closeHistoryList() {
+            document.getElementById('history-view').classList.add('hidden');
+            document.getElementById('input-view').classList.remove('hidden');
+        }
+
+        function openAboutView() {
+            document.getElementById('dropdownMenu').style.display = 'none';
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('history-view').classList.add('hidden');
+            document.getElementById('nav-actions').classList.add('hidden');
+            
+            const navHist = document.getElementById('nav-actions-history');
+            if (navHist) {
+                navHist.classList.add('hidden');
+                navHist.style.display = 'none';
+            }
+
+            document.getElementById('about-view').classList.remove('hidden');
+        }
+
+        function closeAboutView() {
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('input-view').classList.remove('hidden');
+        }
+
+        function renderHistoryList(filterText = '') {
+            const container = document.getElementById('history-list-container');
+            let history = [...currentReceipts];
+
+            if (filterText) {
+                const query = filterText.toLowerCase();
+                history = history.filter(r => r.receipt_no.toLowerCase().includes(query));
+            }
+
+            if (history.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 40px 20px; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">No past receipts found.</div>`;
+                return;
+            }
+
+            let html = '';
+            history.forEach(receipt => {
+                html += `
+                    <div class="history-card" onclick="viewHistoricalReceipt('${receipt.receipt_no}')">
+                        <div>
+                            <div style="font-weight: 800; color: #0f172a; margin-bottom: 6px; font-size: 1.05rem;">${receipt.receipt_no}</div>
+                            <div style="font-size: 0.85rem; color: #64748b;">${receipt.customer_name} &bull; ${formatDate(receipt.date)}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 800; color: #2563eb; font-size: 1.05rem;">${formatNaira(receipt.total)}</div>
+                            <div style="font-size: 0.75rem; margin-top: 6px;" class="${receipt.payment_status === 'Paid' ? 'status-paid' : 'status-pending'} status-badge">${receipt.payment_status.toUpperCase()}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function filterHistory() {
+            const text = document.getElementById('searchHistory').value;
+            renderHistoryList(text);
+        }
+
+        async function saveReceiptToHistory(itemsTotal, finalDeliveryFee, finalAddress) {
+            const receipt = {
+                receipt_no: document.getElementById('receiptNo').value,
+                date: document.getElementById('receiptDate').value,
+                time: document.getElementById('receiptTime').value,
+                customer_name: document.getElementById('customerName').value,
+                customer_phone: document.getElementById('customerPhone').value,
+                delivery_address: finalAddress,
+                delivery_fee: finalDeliveryFee,
+                payment_status: document.getElementById('paymentStatus').value,
+                items: [],
+                total: itemsTotal + finalDeliveryFee,
+                created_at: new Date().toISOString()
+            };
+
+            const names = document.getElementsByName('prodName[]');
+            const quantities = document.getElementsByName('prodQty[]');
+            const prices = document.getElementsByName('prodPrice[]');
+
+            for (let i = 0; i < names.length; i++) {
+                receipt.items.push({
+                    name: names[i].value,
+                    qty: parseInt(quantities[i].value) || 0,
+                    price: parseFloat(prices[i].value) || 0
+                });
+            }
+
+            // Save to Supabase
+            try {
+                const { error } = await supabase
+                    .from('receipts')
+                    .upsert(receipt, { onConflict: 'receipt_no' });
+                    
+                if (error) throw error;
+                console.log("Saved to Supabase Cloud");
+            } catch (err) {
+                console.error("Failed to save receipt to Database:", err);
+                showToast("Warning: Could not sync receipt to cloud.", false);
+            }
+        }
+
+        function viewHistoricalReceipt(receiptNo) {
+            let receipt = currentReceipts.find(r => r.receipt_no === receiptNo);
+            if (!receipt) return;
+
+            document.getElementById('out-date').innerText = formatDate(receipt.date);
+            document.getElementById('out-time').innerText = receipt.time;
+            document.getElementById('out-receipt-no').innerText = receipt.receipt_no;
+            document.getElementById('out-customer-name').innerText = receipt.customer_name;
+            document.getElementById('out-customer-phone').innerText = receipt.customer_phone;
+
+            let productsHTML = '';
+            receipt.items.forEach(item => {
+                const subtotal = item.qty * item.price;
+                productsHTML += `
+                    <div class="product-item-card">
+                        <div class="product-name">${item.name}</div>
+                        <div class="product-meta-row">
+                            <div><span style="color: #94a3b8;">Qty:</span> <strong>${item.qty}</strong></div>
+                            <div><span style="color: #94a3b8;">Unit Price:</span> <strong>${formatNaira(item.price)}</strong></div>
+                            <div style="text-align: right;"><span style="color: #94a3b8;">Subtotal:</span> <strong style="color: #0f172a;">${formatNaira(subtotal)}</strong></div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('out-products-list').innerHTML = productsHTML;
+            document.getElementById('out-address').innerText = receipt.delivery_address;
+            document.getElementById('out-delivery-fee').innerText = formatNaira(receipt.delivery_fee);
+            document.getElementById('out-total').innerText = formatNaira(receipt.total);
+
+            const statusEl = document.getElementById('out-status');
+            statusEl.innerText = receipt.payment_status.toUpperCase();
+            if (receipt.payment_status === 'Paid') {
+                statusEl.className = 'status-badge status-paid';
+            } else {
+                statusEl.className = 'status-badge status-pending';
+            }
+
+            document.getElementById('history-view').classList.add('hidden');
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.remove('hidden');
+
+            document.getElementById('nav-actions').classList.add('hidden');
+            document.getElementById('nav-actions-history').classList.remove('hidden');
+            document.getElementById('nav-actions-history').style.display = 'flex';
+
+            document.getElementById('navBrandTitle').style.display = 'none';
+            document.getElementById('navRightContainer').style.width = '100%';
+            document.getElementById('navRightContainer').style.justifyContent = 'center';
+
+            document.getElementById('dotsMenuContainer').classList.add('hidden');
+            document.getElementById('dropdownMenu').style.display = 'none';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function closeHistoryDetail() {
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('nav-actions-history').classList.add('hidden');
+            document.getElementById('nav-actions-history').style.display = 'none';
+
+            document.getElementById('navBrandTitle').style.display = 'flex';
+            document.getElementById('navRightContainer').style.width = 'auto';
+            document.getElementById('navRightContainer').style.justifyContent = 'flex-end';
+
+            document.getElementById('history-view').classList.remove('hidden');
+            document.getElementById('dotsMenuContainer').classList.remove('hidden');
+        }
+
+        function openChangePasswordModalStep1() {
+            document.getElementById('dropdownMenu').style.display = 'none';
+            document.getElementById('currentPassInput').value = '';
+            document.getElementById('changePassStep1Modal').style.display = 'flex';
+        }
+
+        function processChangePasswordStep1() {
+            const currentPass = document.getElementById('currentPassInput').value;
+            if (currentPass === getAppPassword()) {
+                closeModal('changePassStep1Modal');
+                document.getElementById('newPassInput').value = '';
+                document.getElementById('confirmPassInput').value = '';
+                document.getElementById('changePassStep2Modal').style.display = 'flex';
+            } else {
+                showToast("Incorrect current password!", false);
+                document.getElementById('currentPassInput').value = '';
+            }
+        }
+
+        async function processChangePasswordStep2() {
+            const newPass = document.getElementById('newPassInput').value;
+            const confirmPass = document.getElementById('confirmPassInput').value;
+
+            if (!newPass.trim()) {
+                showToast("Password cannot be empty!", false);
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                showToast("Passwords do not match!", false);
+                return;
+            }
+
+            const btn = document.getElementById('changePassBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            try {
+                // Update password in Supabase
+                const { error } = await supabase
+                    .from('app_config')
+                    .upsert({ key: 'app_password', value: newPass });
+
+                if (error) throw error;
+                
+                currentAppPassword = newPass;
+                closeModal('changePassStep2Modal');
+                showToast("Password synced and changed successfully!", true);
+                
+            } catch(err) {
+                console.error("Error saving new password:", err);
+                showToast("Failed to update password in cloud.", false);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function addProductRow() {
+            productCount++;
+            const container = document.getElementById('products-container');
+            const rowId = `product-row-${productCount}`;
+            
+            const rowHTML = `
+                <div id="${rowId}" class="product-row">
+                    ${productCount > 1 ? `<button type="button" onclick="removeProductRow('${rowId}')" class="btn-remove-row" title="Remove"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                    <div class="prod-grid">
+                        <div class="form-group">
+                            <label class="form-label">Product Name</label>
+                            <input type="text" name="prodName[]" required class="form-control" placeholder="Item name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" name="prodQty[]" min="1" value="1" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Unit Price (₦)</label>
+                            <input type="number" name="prodPrice[]" min="0" step="any" required class="form-control" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHTML);
+        }
+
+        function removeProductRow(rowId) {
+            const el = document.getElementById(rowId);
+            if (el) el.remove();
+        }
+
+        function executeReceiptGeneration() {
+            document.getElementById('out-date').innerText = formatDate(document.getElementById('receiptDate').value);
+            document.getElementById('out-time').innerText = document.getElementById('receiptTime').value;
+            document.getElementById('out-receipt-no').innerText = document.getElementById('receiptNo').value;
+            
+            document.getElementById('out-customer-name').innerText = document.getElementById('customerName').value;
+            document.getElementById('out-customer-phone').innerText = document.getElementById('customerPhone').value;
+            
+            const names = document.getElementsByName('prodName[]');
+            const quantities = document.getElementsByName('prodQty[]');
+            const prices = document.getElementsByName('prodPrice[]');
+            
+            let productsHTML = '';
+            let itemsTotal = 0;
+            
+            for (let i = 0; i < names.length; i++) {
+                const name = names[i].value;
+                const qty = parseInt(quantities[i].value) || 0;
+                const price = parseFloat(prices[i].value) || 0;
+                const subtotal = qty * price;
+                itemsTotal += subtotal;
+                
+                productsHTML += `
+                    <div class="product-item-card">
+                        <div class="product-name">${name}</div>
+                        <div class="product-meta-row">
+                            <div><span style="color: #94a3b8;">Qty:</span> <strong>${qty}</strong></div>
+                            <div><span style="color: #94a3b8;">Unit Price:</span> <strong>${formatNaira(price)}</strong></div>
+                            <div style="text-align: right;"><span style="color: #94a3b8;">Subtotal:</span> <strong style="color: #0f172a;">${formatNaira(subtotal)}</strong></div>
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('out-products-list').innerHTML = productsHTML;
+            
+            const addressInput = document.getElementById('deliveryAddress').value.trim();
+            const deliveryFeeInput = parseFloat(document.getElementById('deliveryFee').value);
+            
+            const finalAddress = addressInput !== "" ? addressInput : "In-Shop Pick Up (Physical)";
+            const finalDeliveryFee = !isNaN(deliveryFeeInput) && deliveryFeeInput >= 0 ? deliveryFeeInput : 0;
+
+            document.getElementById('out-address').innerText = finalAddress;
+            document.getElementById('out-delivery-fee').innerText = formatNaira(finalDeliveryFee);
+            
+            const grandTotal = itemsTotal + finalDeliveryFee;
+            document.getElementById('out-total').innerText = formatNaira(grandTotal);
+            
+            const status = document.getElementById('paymentStatus').value;
+            const statusEl = document.getElementById('out-status');
+            statusEl.innerText = status.toUpperCase();
+            
+            if (status === 'Paid') {
+                statusEl.className = 'status-badge status-paid';
+            } else {
+                statusEl.className = 'status-badge status-pending';
+            }
+
+            // Calls the Database Upsert
+            saveReceiptToHistory(itemsTotal, finalDeliveryFee, finalAddress);
+
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.remove('hidden');
+            
+            document.getElementById('nav-actions-history').classList.add('hidden');
+            document.getElementById('nav-actions-history').style.display = 'none';
+            document.getElementById('nav-actions').classList.remove('hidden');
+            document.getElementById('nav-actions').style.display = 'flex';
+
+            document.getElementById('navBrandTitle').style.display = 'none';
+            document.getElementById('navRightContainer').style.width = '100%';
+            document.getElementById('navRightContainer').style.justifyContent = 'center';
+
+            document.getElementById('dotsMenuContainer').classList.add('hidden');
+            document.getElementById('dropdownMenu').style.display = 'none';
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function editForm() {
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('input-view').classList.remove('hidden');
+            document.getElementById('nav-actions').classList.add('hidden');
+            
+            document.getElementById('navBrandTitle').style.display = 'flex';
+            document.getElementById('navRightContainer').style.width = 'auto';
+            document.getElementById('navRightContainer').style.justifyContent = 'flex-end';
+
+            document.getElementById('dotsMenuContainer').classList.remove('hidden');
+        }
+
+        function createNewReceipt() {
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('deliveryAddress').value = '';
+            document.getElementById('deliveryFee').value = '0';
+            document.getElementById('paymentStatus').value = 'Paid';
+            
+            document.getElementById('receiptDate').valueAsDate = new Date();
+            document.getElementById('receiptTime').value = getCurrentFormattedTime();
+            generateNewReceiptNo();
+
+            document.getElementById('products-container').innerHTML = '';
+            productCount = 0;
+            addProductRow();
+
+            editForm();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('receipt-content');
+            const receiptNo = document.getElementById('out-receipt-no').innerText || '000';
+            const customerName = (document.getElementById('out-customer-name').innerText || 'Customer').replace(/\s+/g, '_');
+            
+            const btn = document.querySelector('button[onclick="downloadPDF()"]');
+            const originalHTML = btn ? btn.innerHTML : '';
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wait...';
+
+            if (typeof html2pdf !== 'undefined') {
+                const elementHeightInches = element.offsetHeight / 96 + 0.6;
+
+                const opt = {
+                    margin:       [0.3, 0.3, 0.3, 0.3],
+                    filename:     `Receipt_${receiptNo}_${customerName}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    jsPDF:        { unit: 'in', format: [7.5, Math.max(8.5, elementHeightInches)], orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    if (btn) btn.innerHTML = originalHTML;
+                    showToast("PDF Downloaded successfully!", true);
+                }).catch((err) => {
+                    console.log("Library PDF generation error, using native system printer fallback:", err);
+                    if (btn) btn.innerHTML = originalHTML;
+                    window.print();
+                });
+            } else {
+                if (btn) btn.innerHTML = originalHTML;
+                window.print();
+            }
+        }
+    </script>
+</body>
+</html>
+
