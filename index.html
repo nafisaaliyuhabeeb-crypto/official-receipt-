@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PGE Receipt App</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+    
+    .card { background-color: #ffffff; color: #1e293b; width: 100%; max-width: 480px; border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    .card-wide { max-width: 720px; }
+    
+    .text-center { text-align: center; }
+    .flex { display: flex; }
+    .justify-between { justify-content: space-between; }
+    .align-center { align-items: center; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-4 { margin-bottom: 16px; }
+    .mt-4 { margin-top: 16px; }
+    
+    label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+    input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 14px; outline: none; background: #fff; color: #0f172a; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-items { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: center; }
+    
+    .btn { background-color: #2563eb; color: #ffffff; font-weight: 700; border: none; border-radius: 8px; padding: 12px; width: 100%; cursor: pointer; font-size: 15px; }
+    .btn-add { background-color: #16a34a; color: #fff; padding: 10px 14px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; }
+    .btn-danger { background-color: transparent; color: #ef4444; font-weight: bold; border: none; font-size: 18px; cursor: pointer; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+    th { background-color: #f8fafc; color: #475569; font-size: 11px; text-transform: uppercase; }
+    
+    #printableReceipt { background-color: #ffffff; color: #000000; padding: 20px; width: 100%; max-width: 380px; margin: 0 auto; border-radius: 8px; }
+    
+    @media print {
+      body * { visibility: hidden; }
+      #printableReceipt, #printableReceipt * { visibility: visible; }
+      #printableReceipt { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="card">
+    <div class="text-center mb-4">
+      <div style="font-size: 36px; margin-bottom: 8px;">🛡️</div>
+      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a;">PROF GENERAL ENTERPRISES</h2>
+      <p style="font-size: 13px; color: #64748b;">Official Access Password</p>
+    </div>
+
+    <div class="mb-4">
+      <input type="password" id="passwordInput" placeholder="Enter password" style="font-size: 16px; text-align: center;">
+    </div>
+
+    <button onclick="unlockApp()" id="unlockBtn" class="btn">🔓 Unlock App</button>
+  </div>
+
+  <!-- MAIN APP SCREEN -->
+  <div id="appScreen" class="card card-wide" style="display: none;">
+    <div class="flex justify-between align-center mb-4" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+      <h2 style="font-size: 20px; font-weight: 800; color: #2563eb;">Receipt Generator</h2>
+      <button onclick="logout()" style="background: none; border: none; color: #ef4444; font-size: 12px; cursor: pointer; text-decoration: underline;">Logout</button>
+    </div>
+
+    <div class="grid-2 mb-4">
+      <div>
+        <label>Customer Name</label>
+        <input type="text" id="custName" placeholder="John Doe">
+      </div>
+      <div>
+        <label>Customer Phone</label>
+        <input type="text" id="custPhone" placeholder="08012345678">
+      </div>
+      <div>
+        <label>Delivery Address</label>
+        <input type="text" id="custAddr" placeholder="Kano, Nigeria">
+      </div>
+      <div>
+        <label>Delivery Fee (₦)</label>
+        <input type="number" id="deliveryFee" value="0" oninput="calculateTotal()">
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 12px;" class="mb-4">
+      <label>Add Items</label>
+      <div class="grid-items mb-2">
+        <input type="text" id="itemName" placeholder="Item Name">
+        <input type="number" id="itemQty" placeholder="Qty" value="1">
+        <input type="number" id="itemPrice" placeholder="Price (₦)">
+        <button onclick="addItem()" class="btn-add">+ Add</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="itemsTable"></tbody>
+      </table>
+
+      <div class="flex justify-between align-center mt-4" style="font-weight: 800; font-size: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+        <span>Grand Total:</span>
+        <span style="color: #2563eb;">₦<span id="grandTotal">0</span></span>
+      </div>
+    </div>
+
+    <button onclick="saveAndPrintReceipt()" id="saveBtn" class="btn" style="background-color: #16a34a;">
+      💾 Save & Print Receipt
+    </button>
+  </div>
+
+  <!-- PRINTABLE RECEIPT TEMPLATE -->
+  <div id="printableReceipt" style="display: none;">
+    <div class="text-center" style="border-bottom: 1px dashed #000; padding-bottom: 12px; margin-bottom: 12px;">
+      <h2 style="font-size: 18px; font-weight: 900; text-transform: uppercase;">Prof General Enterprises</h2>
+      <p style="font-size: 11px;">Official Sales Receipt</p>
+      <p style="font-size: 11px; margin-top: 4px;">Receipt No: <strong id="recNo"></strong></p>
+      <p style="font-size: 11px;">Date: <span id="recDate"></span></p>
+    </div>
+
+    <div style="font-size: 12px; margin-bottom: 12px; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+      <p><strong>Customer:</strong> <span id="recCustName"></span></p>
+      <p><strong>Phone:</strong> <span id="recCustPhone"></span></p>
+      <p><strong>Address:</strong> <span id="recCustAddr"></span></p>
+    </div>
+
+    <table style="font-size: 11px; margin-bottom: 12px;">
+      <thead>
+        <tr style="border-bottom: 1px solid #000;">
+          <th style="background: none; color: #000;">Item</th>
+          <th style="background: none; color: #000;">Qty</th>
+          <th style="background: none; color: #000;">Price</th>
+          <th style="background: none; color: #000; text-align: right;">Total</th>
+        </tr>
+      </thead>
+      <tbody id="recItems"></tbody>
+    </table>
+
+    <div style="font-size: 12px; border-top: 1px solid #000; padding-top: 8px; text-align: right;">
+      <p>Delivery Fee: ₦<span id="recDelivery">0</span></p>
+      <p style="font-size: 14px; font-weight: 800; margin-top: 4px;">Total Paid: ₦<span id="recTotal">0</span></p>
+    </div>
+
+    <div class="text-center" style="font-size: 11px; margin-top: 16px; border-top: 1px dashed #000; padding-top: 8px;">
+      <p>Thank you for your patronage!</p>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://pwdsgjnficwcsdfaqtzr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_Acjw1bgoc5nVo_Y8vS5mHw_yw5w5GqZ';
+    
+    let supabase;
+    if (window.supabase) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+
+    let items = [];
+
+    async function unlockApp() {
+      const pwd = document.getElementById('passwordInput').value.trim();
+      const btn = document.getElementById('unlockBtn');
+
+      if (!pwd) {
+        alert('Please enter a password.');
+        return;
+      }
+
+      // Hardcoded offline/direct pass-through check
+      if (pwd === 'officials123#') {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+        return;
+      }
+
+      if (!supabase) {
+        alert('Supabase client not loaded. Check internet connection.');
+        return;
+      }
+
+      try {
+        btn.innerText = 'Checking...';
+        const { data, error } = await supabase
+          .from('app_config')
+          .select('value')
+          .eq('key', 'official_password')
+          .single();
+
+        if (error) throw error;
+
+        if (data && data.value === pwd) {
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('appScreen').style.display = 'block';
+        } else {
+          alert('Incorrect Password!');
+        }
+      } catch (err) {
+        alert('Database error: ' + err.message);
+      } finally {
+        btn.innerText = '🔓 Unlock App';
+      }
+    }
+
+    function addItem() {
+      const name = document.getElementById('itemName').value;
+      const qty = parseFloat(document.getElementById('itemQty').value) || 1;
+      const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+
+      if (!name || price <= 0) {
+        alert('Please enter item name and price.');
+        return;
+      }
+
+      items.push({ name, qty, price, total: qty * price });
+      renderItems();
+
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemPrice').value = '';
+    }
+
+    function removeItem(index) {
+      items.splice(index, 1);
+      renderItems();
+    }
+
+    function renderItems() {
+      const tbody = document.getElementById('itemsTable');
+      tbody.innerHTML = '';
+      items.forEach((item, index) => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${item.name}</td>
+            <td>${item.qty}</td>
+            <td>₦${item.price}</td>
+            <td>₦${item.total}</td>
+            <td style="text-align: right;"><button onclick="removeItem(${index})" class="btn-danger">×</button></td>
+          </tr>
+        `;
+      });
+      calculateTotal();
+    }
+
+    function calculateTotal() {
+      const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+      const delivery = parseFloat(document.getElementById('deliveryFee').value) || 0;
+      const grandTotal = itemsTotal + delivery;
+      document.getElementById('grandTotal').innerText = grandTotal.toLocaleString();
+      return grandTotal;
+    }
+
+    async function saveAndPrintReceipt() {
+      const name = document.getElementById('custName').value;
+      const phone = document.getElementById('custPhone').value;
+      const addr = document.getElementById('custAddr').value;
+      const delivery = parseFloat(document.getElementById('deliveryFee').value) || 0;
+      const total = calculateTotal();
+
+      if (!name || items.length === 0) {
+        alert('Please enter customer name and add at least one item.');
+        return;
+      }
+
+      const receiptNo = 'PGE-' + Date.now().toString().slice(-6);
+      const currentDate = new Date().toISOString().split('T')[0];
+      const currentTime = new Date().toLocaleTimeString();
+
+      if (supabase) {
+        try {
+          await supabase.from('receipts').insert([{
+            receipt_no: receiptNo,
+            date: currentDate,
+            time: currentTime,
+            customer_name: name,
+            customer_phone: phone,
+            delivery_address: addr,
+            delivery_fee: delivery,
+            payment_status: 'Paid',
+            items: items,
+            total: total
+          }]);
+        } catch (err) {
+          console.error('Save failed:', err);
+        }
+      }
+
+      document.getElementById('recNo').innerText = receiptNo;
+      document.getElementById('recDate').innerText = currentDate + ' ' + currentTime;
+      document.getElementById('recCustName').innerText = name;
+      document.getElementById('recCustPhone').innerText = phone;
+      document.getElementById('recCustAddr').innerText = addr;
+      document.getElementById('recDelivery').innerText = delivery;
+      document.getElementById('recTotal').innerText = total.toLocaleString();
+
+      const recItems = document.getElementById('recItems');
+      recItems.innerHTML = '';
+      items.forEach(i => {
+        recItems.innerHTML += `
+          <tr>
+            <td>${i.name}</td>
+            <td>${i.qty}</td>
+            <td>₦${i.price}</td>
+            <td style="text-align: right;">₦${i.total}</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('printableReceipt').style.display = 'block';
+      
+      window.print();
+
+      document.getElementById('printableReceipt').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+    }
+
+    function logout() {
+      document.getElementById('passwordInput').value = '';
+      document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('loginScreen').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
