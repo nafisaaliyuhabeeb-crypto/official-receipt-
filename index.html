@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA / Add to Home Screen Meta Tags -->
+    <meta name="theme-color" content="#0b1220">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PGE Reciept">
+    <link rel="manifest" id="dynamic-manifest">
+    
+    <title>Prof General Enterprises - Receipt App</title>
+    
+    <!-- Tailwind CSS (CDN fallback) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- html2pdf for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============ DESIGN TOKENS ============ */
+        :root{
+            --ink:#0b1220;
+            --ink-2:#1e293b;
+            --muted:#64748b;
+            --line:#e5e9f0;
+            --brand:#2563eb;
+            --brand-dark:#1d4ed8;
+            --brand-soft:#eff4ff;
+            --ok:#059669;
+            --warn:#d97706;
+            --danger:#ef4444;
+            --radius:22px;
+            --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+            --shadow-md:0 1px 3px rgba(16,24,40,.04), 0 12px 30px -14px rgba(16,24,40,.22);
+            --shadow-lg:0 24px 60px -20px rgba(16,24,40,.28);
+        }
+
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+        html,body{
+            max-width:100vw;overflow-x:hidden;width:100%;min-height:100%;
+        }
+
+        body{
+            font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+            color:var(--ink);
+            background:
+                radial-gradient(900px 520px at 105% -10%, #dbe7ff 0%, transparent 58%),
+                radial-gradient(760px 460px at -12% 6%, #e5e9ff 0%, transparent 58%),
+                #f5f7fc;
+            background-attachment:fixed;
+            padding-bottom:80px;
+            -webkit-font-smoothing:antialiased;
+        }
+
+        /* ============ ANIMATIONS ============ */
+        @keyframes scalePop{
+            0%{opacity:0;transform:scale(.95) translateY(10px);}
+            100%{opacity:1;transform:scale(1) translateY(0);}
+        }
+        @keyframes fadeInDown{
+            from{opacity:0;transform:translateY(-20px);}
+            to{opacity:1;transform:translateY(0);}
+        }
+
+        /* ============ LOCK SCREEN ============ */
+        .lock-screen-overlay{
+            position:fixed;inset:0;width:100vw;height:100vh;
+            background:
+                radial-gradient(700px 420px at 50% -10%, #1e293b 0%, transparent 60%),
+                #0b1220;
+            z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;
+        }
+        .lock-card{
+            background:#fff;border-radius:28px;padding:42px 30px;max-width:430px;width:100%;
+            text-align:center;box-shadow:0 30px 70px -20px rgba(0,0,0,.6);
+            animation:scalePop .32s cubic-bezier(.16,1,.3,1) forwards;
+            will-change:transform,opacity;
+        }
+
+        /* ============ TOAST ============ */
+        .toast-container{
+            position:fixed;top:18px;left:50%;transform:translateX(-50%);
+            z-index:9999;width:92%;max-width:430px;pointer-events:none;
+        }
+        .toast-message{
+            background:#0b1220;color:#fff;padding:14px 18px;border-radius:16px;
+            font-size:.85rem;font-weight:700;box-shadow:0 18px 40px -12px rgba(0,0,0,.55);
+            display:flex;align-items:center;gap:12px;border:1px solid #26324a;
+            animation:fadeInDown .3s cubic-bezier(.16,1,.3,1);
+        }
+        .toast-success{border-left:5px solid #10b981;}
+        .toast-error{border-left:5px solid #ef4444;}
+
+        /* ============ NAV ============ */
+        .app-nav{
+            background:rgba(11,18,32,.9);
+            backdrop-filter:blur(16px) saturate(160%);
+            -webkit-backdrop-filter:blur(16px) saturate(160%);
+            color:#fff;padding:14px 22px;position:sticky;top:0;z-index:50;
+            border-bottom:1px solid rgba(255,255,255,.08);
+            box-shadow:0 10px 30px -18px rgba(0,0,0,.6);
+            width:100%;
+        }
+        .nav-container{
+            max-width:1000px;margin:0 auto;display:flex;justify-content:space-between;
+            align-items:center;position:relative;width:100%;gap:14px;
+        }
+        .brand-title{
+            font-size:1.08rem;font-weight:800;display:flex;align-items:center;gap:12px;
+            letter-spacing:-.02em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .brand-icon{
+            background:linear-gradient(140deg,#3b82f6,#1d4ed8);color:#fff;
+            width:38px;height:38px;border-radius:13px;display:flex;align-items:center;
+            justify-content:center;font-size:15px;flex-shrink:0;
+            box-shadow:0 8px 18px -6px rgba(59,130,246,.85);
+        }
+        .nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+
+        /* ============ BUTTONS ============ */
+        .btn{
+            display:inline-flex;align-items:center;justify-content:center;gap:8px;
+            padding:10px 18px;border-radius:12px;font-size:13.5px;font-weight:700;
+            cursor:pointer;border:none;transition:transform .18s cubic-bezier(.4,0,.2,1),
+            background-color .18s ease, box-shadow .18s ease, border-color .18s ease;
+            text-decoration:none;white-space:nowrap;will-change:transform;
+            font-family:inherit;
+        }
+        .btn:active{transform:translateY(2px) scale(.975);}
+        .btn-primary{background:var(--brand);color:#fff;box-shadow:0 8px 20px -8px rgba(37,99,235,.9);}
+        .btn-primary:hover{background:var(--brand-dark);box-shadow:0 12px 24px -8px rgba(37,99,235,1);}
+        .btn-secondary{background:#26324a;color:#eef2f9;border:1px solid #384663;}
+        .btn-secondary:hover{background:#33415c;}
+        .btn-new{background:var(--ok);color:#fff;box-shadow:0 8px 20px -8px rgba(5,150,105,.9);}
+        .btn-new:hover{background:#047857;box-shadow:0 12px 24px -8px rgba(5,150,105,1);}
+        .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line);}
+        .btn-ghost:hover{background:#f1f5f9;color:var(--ink);}
+
+        .btn-submit{
+            background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;
+            padding:17px 34px;font-size:15.5px;border-radius:16px;width:100%;font-weight:800;
+            box-shadow:0 16px 34px -14px rgba(37,99,235,1);letter-spacing:.02em;
+        }
+        .btn-submit:hover{transform:translateY(-2px);box-shadow:0 22px 40px -16px rgba(37,99,235,1);}
+        .btn-submit:active{transform:translateY(1px);}
+
+        .dots-btn{
+            background:rgba(255,255,255,.04);color:#cbd5e1;width:42px;height:42px;
+            border-radius:13px;border:1px solid rgba(255,255,255,.08);cursor:pointer;
+            display:flex;align-items:center;justify-content:center;font-size:17px;
+            flex-shrink:0;transition:all .2s ease;
+        }
+        .dots-btn:hover{background:#1e293b;color:#fff;border-color:#334155;}
+
+        /* ============ DROPDOWN ============ */
+        .dropdown-menu{
+            position:absolute;right:0;top:54px;width:215px;background:#fff;border-radius:18px;
+            box-shadow:0 24px 60px -18px rgba(16,24,40,.4);border:1px solid var(--line);
+            padding:8px;z-index:100;display:none;
+            animation:scalePop .2s cubic-bezier(.16,1,.3,1) forwards;transform-origin:top right;
+        }
+        .dropdown-item{
+            width:100%;text-align:left;padding:12px 14px;font-size:14px;font-weight:600;
+            color:#334155;background:transparent;border:none;border-radius:12px;cursor:pointer;
+            display:flex;align-items:center;gap:12px;transition:all .16s ease;font-family:inherit;
+        }
+        .dropdown-item:hover{background:#f1f5f9;color:var(--ink);transform:translateX(4px);}
+
+        /* ============ MODALS ============ */
+        .modal-backdrop{
+            position:fixed;inset:0;width:100%;height:100%;
+            background:rgba(11,18,32,.62);backdrop-filter:blur(7px);
+            -webkit-backdrop-filter:blur(7px);z-index:200;display:none;
+            align-items:center;justify-content:center;padding:20px;
+        }
+        .modal-card{
+            background:#fff;border-radius:26px;padding:32px 28px;max-width:405px;width:100%;
+            text-align:center;box-shadow:0 30px 70px -20px rgba(0,0,0,.45);
+            border:1px solid #f1f5f9;animation:scalePop .3s cubic-bezier(.16,1,.3,1) forwards;
+        }
+        .modal-icon{
+            width:62px;height:62px;background:var(--brand-soft);color:var(--brand);
+            border-radius:20px;display:flex;align-items:center;justify-content:center;
+            margin:0 auto 18px auto;font-size:23px;
+        }
+
+        /* ============ LAYOUT ============ */
+        .main-container{max-width:1000px;margin:38px auto 0 auto;padding:0 22px;width:100%;}
+        .page-header{margin-bottom:26px;}
+        .page-title{font-size:2rem;font-weight:800;letter-spacing:-.035em;}
+        .page-subtitle{font-size:.94rem;color:var(--muted);margin-top:6px;}
+
+        .form-card{
+            background:#fff;border-radius:var(--radius);padding:26px;margin-bottom:22px;
+            border:1px solid var(--line);box-shadow:var(--shadow-md);width:100%;
+            transition:box-shadow .3s ease, border-color .3s ease;
+        }
+        .form-card:hover{box-shadow:var(--shadow-lg);border-color:#d7deea;}
+
+        .form-card-header{
+            font-size:.92rem;font-weight:800;color:var(--ink-2);text-transform:uppercase;
+            letter-spacing:.07em;padding-bottom:15px;margin-bottom:20px;
+            border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;
+            align-items:center;gap:12px;flex-wrap:wrap;
+        }
+        .fc-title{display:flex;align-items:center;gap:11px;}
+        .fc-chip{
+            width:30px;height:30px;border-radius:10px;background:var(--brand-soft);
+            color:var(--brand);display:inline-flex;align-items:center;justify-content:center;
+            font-size:13px;flex-shrink:0;
+        }
+
+        .form-grid{display:grid;grid-template-columns:1fr;gap:18px;width:100%;}
+        @media (min-width:768px){
+            .form-grid-2{grid-template-columns:1fr 1fr;}
+            .form-grid-3{grid-template-columns:1fr 1fr 1fr;}
+        }
+
+        .form-group{display:flex;flex-direction:column;gap:7px;width:100%;}
+        .form-label{
+            font-size:.72rem;font-weight:800;text-transform:uppercase;
+            letter-spacing:.09em;color:var(--muted);
+        }
+        .form-control{
+            width:100%;padding:14px 16px;background:#f8fafc;border:1px solid #d8e0ec;
+            border-radius:14px;font-size:.98rem;font-weight:600;color:var(--ink);
+            outline:none;transition:all .2s cubic-bezier(.4,0,.2,1);font-family:inherit;
+        }
+        .form-control::placeholder{color:#a5b0c2;font-weight:500;}
+        .form-control:focus{
+            border-color:var(--brand);background:#fff;
+            box-shadow:0 0 0 4px rgba(37,99,235,.14);
+        }
+        select.form-control{cursor:pointer;appearance:none;
+            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3'><polyline points='6 9 12 15 18 9'/></svg>");
+            background-repeat:no-repeat;background-position:right 16px center;padding-right:44px;
+        }
+
+        .product-row{
+            background:#f8fafc;border:1px solid var(--line);border-radius:18px;
+            padding:20px;position:relative;margin-bottom:14px;width:100%;
+            transition:all .2s ease;
+        }
+        .product-row:hover{border-color:#cfd8e6;background:#fff;box-shadow:var(--shadow-sm);}
+        .btn-remove-row{
+            position:absolute;top:-10px;right:-10px;background:var(--danger);color:#fff;
+            width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;font-size:12px;
+            box-shadow:0 6px 14px -4px rgba(239,68,68,.9);transition:transform .2s;
+        }
+        .btn-remove-row:hover{transform:scale(1.12);}
+        .prod-grid{display:grid;grid-template-columns:1fr;gap:15px;width:100%;}
+        @media(min-width:640px){.prod-grid{grid-template-columns:2fr 1fr 1fr;}}
+
+        /* ============ HISTORY ============ */
+        .history-card{
+            background:#fff;border:1px solid var(--line);border-radius:18px;padding:19px 20px;
+            display:flex;justify-content:space-between;align-items:center;gap:14px;
+            cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-sm);
+        }
+        .history-card:hover{
+            border-color:var(--brand);box-shadow:0 18px 36px -18px rgba(37,99,235,.7);
+            transform:translateY(-3px);
+        }
+
+        /* App-wide coloured status pills */
+        .status-badge{
+            display:inline-block;padding:5px 13px;border-radius:999px;font-size:.68rem;
+            font-weight:800;text-transform:uppercase;letter-spacing:.09em;
+        }
+        .status-paid{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;}
+        .status-pending{background:#fffbeb;color:#b45309;border:1px solid #fde68a;}
+
+        .hidden{display:none !important;}
+
+        /* =========================================================
+           MONOCHROME OFFICIAL RECEIPT  (100% BLACK & WHITE)
+           ========================================================= */
+        .receipt-container{
+            background:#fff;
+            color:#000;
+            max-width:720px;
+            margin:0 auto;
+            padding:46px 44px 40px 44px;
+            border-radius:20px;
+            border:1px solid #d5dae2;
+            box-shadow:var(--shadow-lg);
+            width:100%;
+            font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+        }
+        /* Force pure black text for every element inside the receipt */
+        .receipt-container,
+        .receipt-container *{color:#000;}
+
+        .rcpt-title{
+            font-family:'Playfair Display',Georgia,serif;
+            font-size:1.7rem;font-weight:800;text-align:center;text-transform:uppercase;
+            letter-spacing:.04em;line-height:1.2;
+        }
+        .rcpt-tagline{
+            text-align:center;font-size:.68rem;font-weight:800;text-transform:uppercase;
+            letter-spacing:.3em;margin-top:12px;
+        }
+        .rcpt-sub{
+            display:flex;align-items:center;justify-content:center;gap:12px;
+            font-size:.62rem;font-weight:800;text-transform:uppercase;
+            letter-spacing:.42em;margin-top:8px;
+        }
+        .rcpt-sub span{display:block;width:26px;height:1.5px;background:#000;}
+        .rcpt-contact{
+            text-align:center;font-size:.82rem;font-weight:800;margin-top:16px;
+            display:flex;align-items:center;justify-content:center;gap:11px;flex-wrap:wrap;
+        }
+        .rcpt-contact i{font-size:12px;}
+        .rcpt-contact .sep{opacity:.45;}
+
+        .rcpt-rule{border:0;border-top:3px double #000;margin:22px 0;}
+        .rcpt-rule-dash{border:0;border-top:1px dashed #000;margin:18px 0;}
+
+        .rcpt-sec{
+            font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.22em;
+            padding-bottom:8px;border-bottom:1.5px solid #000;margin-bottom:12px;
+        }
+
+        .rcpt-row{
+            display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+            padding:8px 0;border-bottom:1px dotted #000;
+        }
+        .rcpt-row:last-child{border-bottom:none;}
+        .rcpt-k{
+            font-size:.66rem;font-weight:800;text-transform:uppercase;
+            letter-spacing:.1em;flex:0 0 auto;
+        }
+        .rcpt-v{
+            font-size:.84rem;font-weight:800;text-align:right;word-break:break-word;
+        }
+
+        /* Items */
+        .rcpt-item{padding:11px 0;border-bottom:1px dotted #000;}
+        .rcpt-item:last-child{border-bottom:none;}
+        .rcpt-item-name{font-size:.84rem;font-weight:800;margin-bottom:5px;}
+        .rcpt-item-calc{
+            display:flex;justify-content:space-between;gap:14px;
+            font-size:.74rem;font-weight:600;
+        }
+        .rcpt-item-amt{font-weight:800;}
+
+        /* Grand total */
+        .rcpt-grand{
+            display:flex;justify-content:space-between;align-items:center;gap:16px;
+            border-top:3px double #000;border-bottom:3px double #000;
+            padding:14px 0;margin-top:8px;
+        }
+        .rcpt-grand span:first-child{
+            font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.16em;
+        }
+        .rcpt-grand span:last-child{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;}
+
+        /* Monochrome status pill inside receipt */
+        .receipt-container .status-badge{
+            background:#fff !important;color:#000 !important;
+            border:1.5px solid #000 !important;border-radius:999px;
+            padding:5px 15px;font-size:.66rem;letter-spacing:.14em;
+        }
+
+        .rcpt-foot{text-align:center;margin-top:26px;}
+        .rcpt-thanks{font-size:.86rem;font-weight:800;}
+        .rcpt-priority{font-size:.72rem;font-style:italic;font-weight:600;margin-top:5px;}
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width:520px){
+            .brand-title{font-size:.95rem;}
+            .brand-icon{width:34px;height:34px;font-size:13px;border-radius:11px;}
+            .app-nav{padding:12px 15px;}
+            .main-container{padding:0 15px;margin-top:24px;}
+            .page-title{font-size:1.55rem;}
+            .form-card{padding:20px 18px;border-radius:18px;}
+            .btn{padding:9px 14px;font-size:12.5px;}
+            .receipt-container{padding:30px 20px 26px 20px;border-radius:16px;}
+            .rcpt-title{font-size:1.22rem;}
+            .rcpt-grand span:last-child{font-size:1.22rem;}
+            .rcpt-k{font-size:.6rem;}
+            .rcpt-v{font-size:.78rem;}
+        }
+
+        /* ============ PRINT — RECEIPT ONLY ============ */
+        @media print{
+            @page{size:auto;margin:12mm;}
+            html,body{
+                background:#fff !important;
+                padding:0 !important;
+                margin:0 !important;
+                height:auto !important;
+            }
+            .app-nav,
+            .toast-container,
+            .modal-backdrop,
+            .lock-screen-overlay,
+            #input-view,
+            #history-view,
+            #about-view,
+            .no-print{display:none !important;}
+
+            #preview-view{display:block !important;}
+            .main-container{margin:0 !important;padding:0 !important;max-width:100% !important;}
+
+            #receipt-content{
+                width:100% !important;
+                max-width:100% !important;
+                margin:0 !important;
+                padding:0 !important;
+                border:none !important;
+                border-radius:0 !important;
+                box-shadow:none !important;
+                background:#fff !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- FULLSCREEN SECURITY LOCK SCREEN -->
+    <div id="appLockOverlay" class="lock-screen-overlay">
+        <div class="lock-card">
+            <div class="modal-icon" style="background:#0b1220;color:#fff;">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h2 style="font-size:1.12rem;font-weight:800;">PROF GENERAL ENTERPRISES</h2>
+            <p style="font-size:.9rem;color:#64748b;margin:4px 0 24px 0;">Official Access Password</p>
+            
+            <form onsubmit="event.preventDefault(); unlockApp();">
+                <div class="form-group" style="margin-bottom:20px;">
+                    <input type="password" id="appLockPassword" required class="form-control"
+                           style="text-align:center;letter-spacing:.15em;padding:16px;"
+                           placeholder="Enter Access Password">
+                </div>
+                <button type="submit" class="btn btn-primary"
+                        style="width:100%;padding:16px;font-size:1.02rem;border-radius:15px;">
+                    <i class="fa-solid fa-lock-open"></i> Unlock App
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- NAV -->
+    <nav class="app-nav">
+        <div class="nav-container">
+            <h1 id="navBrandTitle" class="brand-title">
+                <span class="brand-icon"><i class="fa-solid fa-receipt"></i></span>
+                Prof General Enterprises
+            </h1>
+            
+            <div id="navRightContainer" class="nav-right">
+                <!-- Preview actions -->
+                <div id="nav-actions" class="hidden" style="display:flex;gap:10px;width:100%;justify-content:center;flex-wrap:wrap;">
+                    <button onclick="createNewReceipt()" class="btn btn-new">
+                        <i class="fa-solid fa-plus"></i> <span>New</span>
+                    </button>
+                    <button onclick="editForm()" class="btn btn-secondary">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit
+                    </button>
+                    <button onclick="downloadPDF(this)" class="btn btn-primary">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download
+                    </button>
+                </div>
+
+                <!-- History detail actions -->
+                <div id="nav-actions-history" class="hidden" style="display:flex;gap:10px;width:100%;justify-content:center;flex-wrap:wrap;">
+                    <button onclick="closeHistoryDetail()" class="btn btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button onclick="downloadPDF(this)" class="btn btn-primary">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download
+                    </button>
+                </div>
+
+                <!-- Menu -->
+                <div id="dotsMenuContainer" style="position:relative;">
+                    <button id="menuBtn" onclick="toggleMenu(event)" class="dots-btn" aria-label="Menu">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+
+                    <div id="dropdownMenu" class="dropdown-menu">
+                        <button id="installAppMenuBtn" onclick="triggerInstallPrompt()" class="dropdown-item hidden">
+                            <i class="fa-solid fa-download" style="color:#2563eb;width:18px;text-align:center;"></i> Install App
+                        </button>
+                        <button onclick="openHistoryAuthModal()" class="dropdown-item">
+                            <i class="fa-solid fa-clock-rotate-left" style="color:#2563eb;width:18px;text-align:center;"></i> History
+                        </button>
+                        <button onclick="openChangePasswordModalStep1()" class="dropdown-item">
+                            <i class="fa-solid fa-key" style="color:#d97706;width:18px;text-align:center;"></i> Settings
+                        </button>
+                        <button onclick="openAboutView()" class="dropdown-item">
+                            <i class="fa-solid fa-circle-info" style="color:#059669;width:18px;text-align:center;"></i> About us
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Generate Auth Modal -->
+    <div id="generateAuthModal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon"><i class="fa-solid fa-lock"></i></div>
+            <h3 style="font-size:1.28rem;font-weight:800;">Authorize Receipt</h3>
+            <p style="font-size:.9rem;color:#64748b;margin:6px 0 20px 0;">Enter official password to generate receipt</p>
+            
+            <form onsubmit="event.preventDefault(); verifyPasswordAndGenerate();">
+                <div class="form-group" style="margin-bottom:20px;">
+                    <input type="password" id="generatePasswordInput" required class="form-control"
+                           style="text-align:center;letter-spacing:.15em;" placeholder="Enter Password">
+                </div>
+                <div style="display:flex;gap:12px;">
+                    <button type="button" onclick="closeModal('generateAuthModal')" class="btn btn-secondary" style="flex:1;padding:14px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex:1;padding:14px;">
+                        Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- History Auth Modal -->
+    <div id="historyAuthModal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <h3 style="font-size:1.28rem;font-weight:800;">History Access</h3>
+            <p style="font-size:.9rem;color:#64748b;margin:6px 0 20px 0;">Enter official password to view past receipts</p>
+            
+            <form onsubmit="event.preventDefault(); verifyPasswordAndOpenHistory();">
+                <div class="form-group" style="margin-bottom:20px;">
+                    <input type="password" id="historyPasswordInput" required class="form-control"
+                           style="text-align:center;letter-spacing:.15em;" placeholder="Enter Password">
+                </div>
+                <div style="display:flex;gap:12px;">
+                    <button type="button" onclick="closeModal('historyAuthModal')" class="btn btn-secondary" style="flex:1;padding:14px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex:1;padding:14px;">
+                        Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Step 1 -->
+    <div id="changePassStep1Modal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon" style="background:#fffbeb;color:#d97706;">
+                <i class="fa-solid fa-shield"></i>
+            </div>
+            <h3 style="font-size:1.28rem;font-weight:800;">Change Password</h3>
+            <p style="font-size:.9rem;color:#64748b;margin:6px 0 20px 0;">Enter current password to continue</p>
+            
+            <form onsubmit="event.preventDefault(); processChangePasswordStep1();">
+                <div class="form-group" style="margin-bottom:20px;">
+                    <input type="password" id="currentPassInput" required class="form-control"
+                           style="text-align:center;letter-spacing:.15em;" placeholder="Current Password">
+                </div>
+                <div style="display:flex;gap:12px;">
+                    <button type="button" onclick="closeModal('changePassStep1Modal')" class="btn btn-secondary" style="flex:1;padding:14px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex:1;padding:14px;">
+                        Continue
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Step 2 -->
+    <div id="changePassStep2Modal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-icon" style="background:#ecfdf5;color:#059669;">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <h3 style="font-size:1.28rem;font-weight:800;">Set New Password</h3>
+            <p style="font-size:.9rem;color:#64748b;margin:6px 0 20px 0;">Fill in your new security credentials</p>
+            
+            <form onsubmit="event.preventDefault(); processChangePasswordStep2();">
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label class="form-label" style="text-align:left;">New Password</label>
+                    <input type="password" id="newPassInput" required class="form-control" placeholder="New Password">
+                </div>
+                <div class="form-group" style="margin-bottom:24px;">
+                    <label class="form-label" style="text-align:left;">Confirm Password</label>
+                    <input type="password" id="confirmPassInput" required class="form-control" placeholder="Confirm New Password">
+                </div>
+                <div style="display:flex;gap:12px;">
+                    <button type="button" onclick="closeModal('changePassStep2Modal')" class="btn btn-secondary" style="flex:1;padding:14px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-new" style="flex:1;padding:14px;">
+                        Change
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="main-container">
+        
+        <!-- ================= INPUT FORM ================= -->
+        <div id="input-view">
+            <div class="page-header">
+                <h2 class="page-title">Generate Receipt</h2>
+                <p class="page-subtitle">Fill out customer and item details below. Delivery address is optional for physical shop sales.</p>
+            </div>
+
+            <form id="receiptForm" onsubmit="event.preventDefault(); openGenerateAuthModal();">
+                
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span class="fc-title">
+                            <span class="fc-chip"><i class="fa-solid fa-circle-info"></i></span> Receipt Info
+                        </span>
+                    </div>
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label class="form-label">Receipt No</label>
+                            <input type="text" id="receiptNo" required class="form-control" placeholder="e.g. PGE-001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="receiptDate" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time</label>
+                            <input type="text" id="receiptTime" required class="form-control" placeholder="12:34:09 PM">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span class="fc-title">
+                            <span class="fc-chip"><i class="fa-solid fa-user"></i></span> Customer Details
+                        </span>
+                    </div>
+                    <div class="form-grid form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Customer Name</label>
+                            <input type="text" id="customerName" required class="form-control" placeholder="e.g. Aliyu Ishaq">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Customer Phone</label>
+                            <input type="text" id="customerPhone" required class="form-control" placeholder="e.g. 08012345678">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span class="fc-title">
+                            <span class="fc-chip"><i class="fa-solid fa-cart-shopping"></i></span> Order Details
+                        </span>
+                        <button type="button" onclick="addProductRow()" class="btn btn-new" style="padding:9px 15px;font-size:12.5px;">
+                            <i class="fa-solid fa-plus"></i> Add Product
+                        </button>
+                    </div>
+                    
+                    <div id="products-container"></div>
+                </div>
+
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <span class="fc-title">
+                            <span class="fc-chip"><i class="fa-solid fa-truck"></i></span> Delivery &amp; Payment
+                        </span>
+                    </div>
+                    <div class="form-grid form-grid-2">
+                        <div class="form-group" style="grid-column:1 / -1;">
+                            <label class="form-label">
+                                Delivery Address <span style="text-transform:none;font-weight:600;color:#94a3b8;">(optional — leave blank for shop pickup)</span>
+                            </label>
+                            <input type="text" id="deliveryAddress" class="form-control" placeholder="e.g. 12 Main Street, Lagos">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Delivery Fee (₦)</label>
+                            <input type="number" id="deliveryFee" value="0" min="0" class="form-control" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Payment Status</label>
+                            <select id="paymentStatus" class="form-control">
+                                <option value="Paid">PAID</option>
+                                <option value="Pending">PENDING</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:30px;">
+                    <button type="submit" class="btn btn-submit">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Official Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+
+
+        <!-- ================= HISTORY ================= -->
+        <div id="history-view" class="hidden">
+            <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div>
+                    <h2 class="page-title">Receipt History</h2>
+                    <p class="page-subtitle">View your generated receipts.</p>
+                </div>
+                <button onclick="closeHistoryList()" class="btn btn-ghost">
+                    <i class="fa-solid fa-xmark"></i> Close
+                </button>
+            </div>
+            
+            <div class="form-card" style="padding:18px;margin-bottom:22px;">
+                <div style="position:relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:17px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                    <input type="text" id="searchHistory" class="form-control" style="padding-left:47px;"
+                           placeholder="Search by Receipt No..." onkeyup="filterHistory()">
+                </div>
+            </div>
+
+            <div id="history-list-container" style="display:flex;flex-direction:column;gap:14px;"></div>
+        </div>
+
+
+        <!-- ================= ABOUT ================= -->
+        <div id="about-view" class="hidden">
+            <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div>
+                    <h2 class="page-title">About Us</h2>
+                    <p class="page-subtitle">Official Platform Information</p>
+                </div>
+                <button onclick="closeAboutView()" class="btn btn-ghost">
+                    <i class="fa-solid fa-xmark"></i> Close
+                </button>
+            </div>
+
+            <div class="form-card" style="font-size:1rem;line-height:1.85;color:#334155;white-space:pre-line;">Welcome to the official receipt platform of PROF GENERAL ENTERPRISES.
+
+This system is designed exclusively for authorized officials to securely create, manage, and issue official business receipts.
+
+🔐 Security & Access Control
+
+To protect the integrity of our business records and prevent unauthorized receipt generation, this platform is secured with an official access password.
+
+App/Website Access: A password is required whenever the application or website is reopened after being closed.
+
+Receipt Generation: Authorized personnel must enter the official password before any receipt can be generated.
+
+Receipt History: Access to receipt history is password-protected to prevent unauthorized persons from viewing business records.
+
+Official Use Only: The system is strictly intended for authorized officials of PROF GENERAL ENTERPRISES.
+
+Unauthorized Access: Possession of the application or website link alone does not grant permission to create, generate, or access official receipts and records.
+
+These security measures are implemented to ensure that our official receipts remain secure, controlled, authentic, and properly managed.
+
+Even if the application or website link is shared or accessed by an unauthorized person, important functions remain protected by password authentication.
+
+PROF GENERAL ENTERPRISES
+Quality • Trust • Reliability • Excellence</div>
+
+            <div style="text-align:center;margin:40px 0 20px 0;font-size:.92rem;color:#94a3b8;font-weight:700;">
+                Copyright ©️ 2026
+            </div>
+        </div>
+
+
+        <!-- ================= RECEIPT PREVIEW (MONOCHROME) ================= -->
+        <div id="preview-view" class="hidden">
+            <div class="no-print" style="text-align:center;margin-bottom:22px;">
+                <p style="font-size:.94rem;color:#64748b;font-weight:600;">Review your receipt below.</p>
+            </div>
+
+            <div id="receipt-content" class="receipt-container">
+
+                <!-- HEADER (square logo removed) -->
+                <header>
+                    <h1 class="rcpt-title">Prof General Enterprises</h1>
+                    <p class="rcpt-tagline">Quality &bull; Trust &bull; Reliability</p>
+                    <p class="rcpt-sub"><span></span>Excellence<span></span></p>
+                    <div class="rcpt-contact">
+                        <span><i class="fa-brands fa-whatsapp"></i> WhatsApp</span>
+                        <span class="sep">|</span>
+                        <span><i class="fa-solid fa-phone"></i> +234 913 995 0486</span>
+                    </div>
+                </header>
+
+                <hr class="rcpt-rule">
+
+                <!-- META -->
+                <section>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Receipt No</span>
+                        <span class="rcpt-v" id="out-receipt-no">—</span>
+                    </div>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Date</span>
+                        <span class="rcpt-v" id="out-date">—</span>
+                    </div>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Time</span>
+                        <span class="rcpt-v" id="out-time">—</span>
+                    </div>
+                </section>
+
+                <hr class="rcpt-rule-dash">
+
+                <!-- CUSTOMER -->
+                <section>
+                    <h2 class="rcpt-sec">Customer Details</h2>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Customer Name</span>
+                        <span class="rcpt-v" id="out-customer-name"></span>
+                    </div>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Customer Phone</span>
+                        <span class="rcpt-v" id="out-customer-phone"></span>
+                    </div>
+                </section>
+
+                <hr class="rcpt-rule-dash">
+
+                <!-- ITEMS -->
+                <section>
+                    <h2 class="rcpt-sec">Order Details</h2>
+                    <div id="out-products-list"></div>
+                </section>
+
+                <hr class="rcpt-rule-dash">
+
+                <!-- DELIVERY -->
+                <section>
+                    <h2 class="rcpt-sec">Delivery Details</h2>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Address</span>
+                        <span class="rcpt-v" id="out-address"></span>
+                    </div>
+                </section>
+
+                <hr class="rcpt-rule-dash">
+
+                <!-- TOTALS -->
+                <section>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Items Subtotal</span>
+                        <span class="rcpt-v" id="out-subtotal"></span>
+                    </div>
+                    <div class="rcpt-row">
+                        <span class="rcpt-k">Delivery Fee</span>
+                        <span class="rcpt-v" id="out-delivery-fee"></span>
+                    </div>
+                </section>
+
+                <div class="rcpt-grand">
+                    <span>Total</span>
+                    <span id="out-total"></span>
+                </div>
+
+                <div class="rcpt-row" style="margin-top:14px;border-bottom:none;">
+                    <span class="rcpt-k">Payment Status</span>
+                    <span id="out-status" class="status-badge"></span>
+                </div>
+
+                <hr class="rcpt-rule">
+
+                <!-- FOOTER (bottom note removed) -->
+                <footer class="rcpt-foot">
+                    <p class="rcpt-thanks">Thank you for your order with us!</p>
+                    <p class="rcpt-priority">Your Satisfaction, Our Priority</p>
+                </footer>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ================= PWA ================= */
+        const pwaManifest = {
+            "name": "PROF GENERAL ENTERPRISES",
+            "short_name": "PGE Reciept",
+            "start_url": window.location.href.split('?')[0],
+            "display": "standalone",
+            "background_color": "#f5f7fc",
+            "theme_color": "#0b1220",
+            "icons": [
+                { "src": "https://official-receipt.vercel.app/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+                { "src": "https://official-receipt.vercel.app/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+            ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(pwaManifest)], { type: 'application/json' });
+        document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('installAppMenuBtn');
+            if (installBtn) installBtn.classList.remove('hidden');
+        });
+
+        function triggerInstallPrompt() {
+            const menu = document.getElementById('dropdownMenu');
+            if (menu) menu.style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') showToast("App installed successfully!", true);
+                    deferredPrompt = null;
+                    const installBtn = document.getElementById('installAppMenuBtn');
+                    if (installBtn) installBtn.classList.add('hidden');
+                });
+            } else {
+                showToast("App is already installed or your browser doesn't support direct install. Use 'Add to Home Screen'.", false);
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(fetch(e.request).catch(() => new Response('Offline')));
+                    });
+                `;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log('SW registration failed:', err));
+            });
+        }
+
+        /* ================= BACK BUTTON ================= */
+        window.addEventListener('load', () => { window.history.pushState({ noExit: true }, ''); });
+
+        window.addEventListener('popstate', function() {
+            let closedSomething = false;
+
+            const modals = document.querySelectorAll('.modal-backdrop');
+            for (let m of modals) {
+                if (window.getComputedStyle(m).display !== 'none') {
+                    m.style.display = 'none';
+                    closedSomething = true;
+                }
+            }
+            
+            if (!closedSomething) {
+                if (!document.getElementById('preview-view').classList.contains('hidden')) {
+                    if (!document.getElementById('nav-actions-history').classList.contains('hidden')) {
+                        closeHistoryDetail();
+                    } else {
+                        editForm();
+                    }
+                    closedSomething = true;
+                }
+                else if (!document.getElementById('history-view').classList.contains('hidden')) {
+                    closeHistoryList(); closedSomething = true;
+                }
+                else if (!document.getElementById('about-view').classList.contains('hidden')) {
+                    closeAboutView(); closedSomething = true;
+                }
+            }
+
+            if (closedSomething) window.history.pushState({ noExit: true }, '');
+        });
+
+        /* ================= APP LOGIC ================= */
+        let productCount = 0;
+        const DEFAULT_PASSWORD = "officials123#";
+
+        function getAppPassword() {
+            return localStorage.getItem('prof_app_password') || DEFAULT_PASSWORD;
+        }
+
+        const formatNaira = (amount) => {
+            return '₦' + Number(amount).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+
+        const getCurrentFormattedTime = () => {
+            return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        };
+
+        function showToast(message, isSuccess = true) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${isSuccess ? 'toast-success' : 'toast-error'}`;
+            toast.innerHTML = `
+                <i class="${isSuccess ? 'fa-solid fa-circle-check' : 'fa-solid fa-triangle-exclamation'}"
+                   style="color:${isSuccess ? '#10b981' : '#ef4444'};font-size:18px;"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity .4s ease';
+                setTimeout(() => toast.remove(), 400);
+            }, 2000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('receiptDate').valueAsDate = new Date();
+            document.getElementById('receiptTime').value = getCurrentFormattedTime();
+            generateNewReceiptNo();
+            addProductRow();
+
+            document.addEventListener('click', (event) => {
+                const menu = document.getElementById('dropdownMenu');
+                const menuBtn = document.getElementById('menuBtn');
+                if (menu && menuBtn && !menu.contains(event.target) && !menuBtn.contains(event.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+        });
+
+        /* ========== VALIDATION: Names must contain a space ========== */
+        function validateSpaces() {
+            // Customer name
+            const custName = document.getElementById('customerName').value.trim();
+            if (custName.indexOf(' ') === -1) {
+                showToast("Customer name must contain a space (e.g. Aliyu Ishaq).", false);
+                return false;
+            }
+            // Product names
+            const prodNames = document.getElementsByName('prodName[]');
+            for (let i = 0; i < prodNames.length; i++) {
+                const prodName = prodNames[i].value.trim();
+                if (prodName.indexOf(' ') === -1) {
+                    showToast("Product name must contain a space (e.g. Rice Bag).", false);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function unlockApp() {
+            const entered = document.getElementById('appLockPassword').value;
+            if (entered === getAppPassword()) {
+                document.getElementById('appLockOverlay').style.display = 'none';
+                document.getElementById('appLockPassword').value = '';
+                showToast("Access Granted. Welcome!", true);
+            } else {
+                showToast("Incorrect Password! Access Denied.", false);
+                document.getElementById('appLockPassword').value = '';
+            }
+        }
+
+        function generateNewReceiptNo() {
+            document.getElementById('receiptNo').value = 'PGE-' + Math.floor(100000 + Math.random() * 900000);
+        }
+
+        function toggleMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function openGenerateAuthModal() {
+            // Validate names before asking for password
+            if (!validateSpaces()) return;
+
+            document.getElementById('generatePasswordInput').value = '';
+            document.getElementById('generateAuthModal').style.display = 'flex';
+        }
+
+        function verifyPasswordAndGenerate() {
+            const entered = document.getElementById('generatePasswordInput').value;
+            if (entered === getAppPassword()) {
+                closeModal('generateAuthModal');
+                executeReceiptGeneration();
+                showToast("Receipt generated successfully!", true);
+            } else {
+                showToast("Incorrect Password! Receipt not generated.", false);
+                document.getElementById('generatePasswordInput').value = '';
+            }
+        }
+
+        function openHistoryAuthModal() {
+            document.getElementById('dropdownMenu').style.display = 'none';
+            document.getElementById('historyPasswordInput').value = '';
+            document.getElementById('historyAuthModal').style.display = 'flex';
+        }
+
+        function verifyPasswordAndOpenHistory() {
+            const entered = document.getElementById('historyPasswordInput').value;
+            if (entered === getAppPassword()) {
+                closeModal('historyAuthModal');
+                openHistoryList();
+            } else {
+                showToast("Incorrect Password! Access Denied.", false);
+                document.getElementById('historyPasswordInput').value = '';
+            }
+        }
+
+        function openHistoryList() {
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('nav-actions').classList.add('hidden');
+            
+            const navHist = document.getElementById('nav-actions-history');
+            if (navHist) { navHist.classList.add('hidden'); navHist.style.display = 'none'; }
+
+            document.getElementById('navBrandTitle').style.display = 'flex';
+            document.getElementById('navRightContainer').style.width = 'auto';
+            document.getElementById('navRightContainer').style.justifyContent = 'flex-end';
+            document.getElementById('dotsMenuContainer').classList.remove('hidden');
+
+            document.getElementById('history-view').classList.remove('hidden');
+            document.getElementById('searchHistory').value = '';
+            renderHistoryList();
+        }
+
+        function closeHistoryList() {
+            document.getElementById('history-view').classList.add('hidden');
+            document.getElementById('input-view').classList.remove('hidden');
+        }
+
+        function openAboutView() {
+            document.getElementById('dropdownMenu').style.display = 'none';
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('history-view').classList.add('hidden');
+            document.getElementById('nav-actions').classList.add('hidden');
+            
+            const navHist = document.getElementById('nav-actions-history');
+            if (navHist) { navHist.classList.add('hidden'); navHist.style.display = 'none'; }
+
+            document.getElementById('about-view').classList.remove('hidden');
+        }
+
+        function closeAboutView() {
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('input-view').classList.remove('hidden');
+        }
+
+        function renderHistoryList(filterText = '') {
+            const container = document.getElementById('history-list-container');
+            let history = JSON.parse(localStorage.getItem('prof_receipt_history') || '[]');
+            history.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if (filterText) {
+                const query = filterText.toLowerCase();
+                history = history.filter(r => r.receiptNo.toLowerCase().includes(query));
+            }
+
+            if (history.length === 0) {
+                container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:44px 20px;background:#fff;border-radius:18px;border:1px solid var(--line);font-weight:600;">No past receipts found.</div>`;
+                return;
+            }
+
+            let html = '';
+            history.forEach(receipt => {
+                html += `
+                    <div class="history-card" onclick="viewHistoricalReceipt('${receipt.receiptNo}')">
+                        <div style="min-width:0;">
+                            <div style="font-weight:800;color:#0b1220;margin-bottom:6px;font-size:1.02rem;">${receipt.receiptNo}</div>
+                            <div style="font-size:.84rem;color:#64748b;font-weight:600;">${receipt.customerName} &bull; ${formatDate(receipt.date)}</div>
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                            <div style="font-weight:800;color:#2563eb;font-size:1.02rem;">${formatNaira(receipt.total)}</div>
+                            <div style="font-size:.7rem;margin-top:7px;" class="${receipt.paymentStatus === 'Paid' ? 'status-paid' : 'status-pending'} status-badge">${receipt.paymentStatus.toUpperCase()}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function filterHistory() {
+            renderHistoryList(document.getElementById('searchHistory').value);
+        }
+
+        function saveReceiptToHistory(itemsTotal, finalDeliveryFee, finalAddress) {
+            const receipt = {
+                receiptNo: document.getElementById('receiptNo').value,
+                date: document.getElementById('receiptDate').value,
+                time: document.getElementById('receiptTime').value,
+                customerName: document.getElementById('customerName').value,
+                customerPhone: document.getElementById('customerPhone').value,
+                deliveryAddress: finalAddress,
+                deliveryFee: finalDeliveryFee,
+                paymentStatus: document.getElementById('paymentStatus').value,
+                items: [],
+                total: itemsTotal + finalDeliveryFee,
+                timestamp: new Date().getTime()
+            };
+
+            const names = document.getElementsByName('prodName[]');
+            const quantities = document.getElementsByName('prodQty[]');
+            const prices = document.getElementsByName('prodPrice[]');
+
+            for (let i = 0; i < names.length; i++) {
+                receipt.items.push({
+                    name: names[i].value,
+                    qty: parseInt(quantities[i].value) || 0,
+                    price: parseFloat(prices[i].value) || 0
+                });
+            }
+
+            let history = JSON.parse(localStorage.getItem('prof_receipt_history') || '[]');
+            const existingIdx = history.findIndex(r => r.receiptNo === receipt.receiptNo);
+            if (existingIdx >= 0) history[existingIdx] = receipt;
+            else history.push(receipt);
+
+            localStorage.setItem('prof_receipt_history', JSON.stringify(history));
+        }
+
+        function viewHistoricalReceipt(receiptNo) {
+            let history = JSON.parse(localStorage.getItem('prof_receipt_history') || '[]');
+            let receipt = history.find(r => r.receiptNo === receiptNo);
+            if (!receipt) return;
+
+            document.getElementById('out-date').innerText = formatDate(receipt.date);
+            document.getElementById('out-time').innerText = receipt.time;
+            document.getElementById('out-receipt-no').innerText = receipt.receiptNo;
+            document.getElementById('out-customer-name').innerText = receipt.customerName;
+            document.getElementById('out-customer-phone').innerText = receipt.customerPhone;
+
+            let productsHTML = '';
+            let itemsTotal = 0;
+            receipt.items.forEach(item => {
+                const subtotal = item.qty * item.price;
+                itemsTotal += subtotal;
+                productsHTML += `
+                    <div class="rcpt-item">
+                        <div class="rcpt-item-name">${item.name}</div>
+                        <div class="rcpt-item-calc">
+                            <span>${item.qty} &times; ${formatNaira(item.price)}</span>
+                            <span class="rcpt-item-amt">${formatNaira(subtotal)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('out-products-list').innerHTML = productsHTML;
+
+            document.getElementById('out-subtotal').innerText = formatNaira(itemsTotal);
+            document.getElementById('out-address').innerText = receipt.deliveryAddress;
+            document.getElementById('out-delivery-fee').innerText = formatNaira(receipt.deliveryFee);
+            document.getElementById('out-total').innerText = formatNaira(receipt.total);
+
+            const statusEl = document.getElementById('out-status');
+            statusEl.innerText = receipt.paymentStatus.toUpperCase();
+            statusEl.className = 'status-badge ' + (receipt.paymentStatus === 'Paid' ? 'status-paid' : 'status-pending');
+
+            document.getElementById('history-view').classList.add('hidden');
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.remove('hidden');
+
+            document.getElementById('nav-actions').classList.add('hidden');
+            document.getElementById('nav-actions-history').classList.remove('hidden');
+            document.getElementById('nav-actions-history').style.display = 'flex';
+
+            document.getElementById('navBrandTitle').style.display = 'none';
+            document.getElementById('navRightContainer').style.width = '100%';
+            document.getElementById('navRightContainer').style.justifyContent = 'center';
+
+            document.getElementById('dotsMenuContainer').classList.add('hidden');
+            document.getElementById('dropdownMenu').style.display = 'none';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function closeHistoryDetail() {
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('nav-actions-history').classList.add('hidden');
+            document.getElementById('nav-actions-history').style.display = 'none';
+
+            document.getElementById('navBrandTitle').style.display = 'flex';
+            document.getElementById('navRightContainer').style.width = 'auto';
+            document.getElementById('navRightContainer').style.justifyContent = 'flex-end';
+
+            document.getElementById('history-view').classList.remove('hidden');
+            document.getElementById('dotsMenuContainer').classList.remove('hidden');
+        }
+
+        function openChangePasswordModalStep1() {
+            document.getElementById('dropdownMenu').style.display = 'none';
+            document.getElementById('currentPassInput').value = '';
+            document.getElementById('changePassStep1Modal').style.display = 'flex';
+        }
+
+        function processChangePasswordStep1() {
+            const currentPass = document.getElementById('currentPassInput').value;
+            if (currentPass === getAppPassword()) {
+                closeModal('changePassStep1Modal');
+                document.getElementById('newPassInput').value = '';
+                document.getElementById('confirmPassInput').value = '';
+                document.getElementById('changePassStep2Modal').style.display = 'flex';
+            } else {
+                showToast("Incorrect current password!", false);
+                document.getElementById('currentPassInput').value = '';
+            }
+        }
+
+        function processChangePasswordStep2() {
+            const newPass = document.getElementById('newPassInput').value;
+            const confirmPass = document.getElementById('confirmPassInput').value;
+
+            if (!newPass.trim()) { showToast("Password cannot be empty!", false); return; }
+            if (newPass !== confirmPass) { showToast("Passwords do not match!", false); return; }
+
+            localStorage.setItem('prof_app_password', newPass);
+            closeModal('changePassStep2Modal');
+            showToast("Password changed successfully!", true);
+        }
+
+        function addProductRow() {
+            productCount++;
+            const container = document.getElementById('products-container');
+            const rowId = `product-row-${productCount}`;
+            
+            const rowHTML = `
+                <div id="${rowId}" class="product-row">
+                    ${productCount > 1 ? `<button type="button" onclick="removeProductRow('${rowId}')" class="btn-remove-row" title="Remove"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                    <div class="prod-grid">
+                        <div class="form-group">
+                            <label class="form-label">Product Name</label>
+                            <input type="text" name="prodName[]" required class="form-control" placeholder="e.g. Rice Bag">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" name="prodQty[]" min="1" value="1" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Unit Price (₦)</label>
+                            <input type="number" name="prodPrice[]" min="0" step="any" required class="form-control" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHTML);
+        }
+
+        function removeProductRow(rowId) {
+            const el = document.getElementById(rowId);
+            if (el) el.remove();
+        }
+
+        function executeReceiptGeneration() {
+            document.getElementById('out-date').innerText = formatDate(document.getElementById('receiptDate').value);
+            document.getElementById('out-time').innerText = document.getElementById('receiptTime').value;
+            document.getElementById('out-receipt-no').innerText = document.getElementById('receiptNo').value;
+            
+            document.getElementById('out-customer-name').innerText = document.getElementById('customerName').value;
+            document.getElementById('out-customer-phone').innerText = document.getElementById('customerPhone').value;
+            
+            const names = document.getElementsByName('prodName[]');
+            const quantities = document.getElementsByName('prodQty[]');
+            const prices = document.getElementsByName('prodPrice[]');
+            
+            let productsHTML = '';
+            let itemsTotal = 0;
+            
+            for (let i = 0; i < names.length; i++) {
+                const name = names[i].value;
+                const qty = parseInt(quantities[i].value) || 0;
+                const price = parseFloat(prices[i].value) || 0;
+                const subtotal = qty * price;
+                itemsTotal += subtotal;
+                
+                productsHTML += `
+                    <div class="rcpt-item">
+                        <div class="rcpt-item-name">${name}</div>
+                        <div class="rcpt-item-calc">
+                            <span>${qty} &times; ${formatNaira(price)}</span>
+                            <span class="rcpt-item-amt">${formatNaira(subtotal)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('out-products-list').innerHTML = productsHTML;
+            
+            const addressInput = document.getElementById('deliveryAddress').value.trim();
+            const deliveryFeeInput = parseFloat(document.getElementById('deliveryFee').value);
+            
+            const finalAddress = addressInput !== "" ? addressInput : "In-Shop Pick Up (Physical)";
+            const finalDeliveryFee = !isNaN(deliveryFeeInput) && deliveryFeeInput >= 0 ? deliveryFeeInput : 0;
+
+            document.getElementById('out-subtotal').innerText = formatNaira(itemsTotal);
+            document.getElementById('out-address').innerText = finalAddress;
+            document.getElementById('out-delivery-fee').innerText = formatNaira(finalDeliveryFee);
+            
+            const grandTotal = itemsTotal + finalDeliveryFee;
+            document.getElementById('out-total').innerText = formatNaira(grandTotal);
+            
+            const status = document.getElementById('paymentStatus').value;
+            const statusEl = document.getElementById('out-status');
+            statusEl.innerText = status.toUpperCase();
+            statusEl.className = 'status-badge ' + (status === 'Paid' ? 'status-paid' : 'status-pending');
+
+            saveReceiptToHistory(itemsTotal, finalDeliveryFee, finalAddress);
+
+            document.getElementById('input-view').classList.add('hidden');
+            document.getElementById('about-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.remove('hidden');
+            
+            document.getElementById('nav-actions-history').classList.add('hidden');
+            document.getElementById('nav-actions-history').style.display = 'none';
+            document.getElementById('nav-actions').classList.remove('hidden');
+            document.getElementById('nav-actions').style.display = 'flex';
+
+            document.getElementById('navBrandTitle').style.display = 'none';
+            document.getElementById('navRightContainer').style.width = '100%';
+            document.getElementById('navRightContainer').style.justifyContent = 'center';
+
+            document.getElementById('dotsMenuContainer').classList.add('hidden');
+            document.getElementById('dropdownMenu').style.display = 'none';
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function editForm() {
+            document.getElementById('preview-view').classList.add('hidden');
+            document.getElementById('input-view').classList.remove('hidden');
+            document.getElementById('nav-actions').classList.add('hidden');
+            
+            document.getElementById('navBrandTitle').style.display = 'flex';
+            document.getElementById('navRightContainer').style.width = 'auto';
+            document.getElementById('navRightContainer').style.justifyContent = 'flex-end';
+
+            document.getElementById('dotsMenuContainer').classList.remove('hidden');
+        }
+
+        function createNewReceipt() {
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('deliveryAddress').value = '';
+            document.getElementById('deliveryFee').value = '0';
+            document.getElementById('paymentStatus').value = 'Paid';
+            
+            document.getElementById('receiptDate').valueAsDate = new Date();
+            document.getElementById('receiptTime').value = getCurrentFormattedTime();
+            generateNewReceiptNo();
+
+            document.getElementById('products-container').innerHTML = '';
+            productCount = 0;
+            addProductRow();
+
+            editForm();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        /* ================= PDF DOWNLOAD (MONOCHROME) ================= */
+        function downloadPDF(btnEl) {
+            const element = document.getElementById('receipt-content');
+            const receiptNo = document.getElementById('out-receipt-no').innerText || '000';
+            const customerName = (document.getElementById('out-customer-name').innerText || 'Customer').replace(/\s+/g, '_');
+            
+            const btn = btnEl || document.querySelector('button[onclick^="downloadPDF"]');
+            const originalHTML = btn ? btn.innerHTML : '';
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wait...';
+
+            if (typeof html2pdf !== 'undefined') {
+                const elementHeightInches = element.offsetHeight / 96 + 0.7;
+
+                const opt = {
+                    margin:       [0.35, 0.35, 0.35, 0.35],
+                    filename:     `Receipt_${receiptNo}_${customerName}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.99 },
+                    html2canvas:  { scale: 2.5, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+                    jsPDF:        { unit: 'in', format: [7.5, Math.max(8.5, elementHeightInches)], orientation: 'portrait' },
+                    pagebreak:    { mode: ['avoid-all', 'css'] }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    if (btn) btn.innerHTML = originalHTML;
+                    showToast("PDF downloaded successfully!", true);
+                }).catch((err) => {
+                    console.log("Library PDF error, using native print fallback:", err);
+                    if (btn) btn.innerHTML = originalHTML;
+                    window.print();
+                });
+            } else {
+                if (btn) btn.innerHTML = originalHTML;
+                window.print();
+            }
+        }
+    </script>
+</body>
+</html>
